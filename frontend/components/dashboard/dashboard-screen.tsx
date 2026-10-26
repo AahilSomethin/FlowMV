@@ -22,12 +22,6 @@ const unavailable = [
     detail: "Incoming requests are not stored yet.",
   },
   {
-    href: "/workflows",
-    label: "Workflows",
-    icon: GitBranch,
-    detail: "Workflow definitions are not stored yet.",
-  },
-  {
     href: "/analytics",
     label: "Analytics",
     icon: BarChart3,
@@ -73,6 +67,23 @@ export function DashboardScreen() {
           description="Select an organization from the workspace menu. FlowMV will replace this page with that organization's details."
         />
       )}
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10 sm:max-w-md">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <GitBranch className="size-4 text-muted-foreground" aria-hidden="true" />
+              <h2 className="truncate text-sm font-medium">Workflows</h2>
+            </div>
+            <StatusBadge>Available</StatusBadge>
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Design forms and approval paths. Published versions stay available while a newer draft is in progress.
+          </p>
+          <Button variant="outline" className="h-10 w-fit" asChild>
+            <Link href="/workflows">Open Workflows</Link>
+          </Button>
+        </div>
+      </section>
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-medium">Not connected yet</h2>

@@ -48,6 +48,11 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-node-start: var(--node-start);
+  --color-node-approval: var(--node-approval);
+  --color-node-condition: var(--node-condition);
+  --color-node-revision: var(--node-revision);
+  --color-node-end: var(--node-end);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -90,6 +95,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.546 0.215 277.1);
+  --node-start: var(--primary);
+  --node-approval: oklch(0.45 0.08 250);
+  --node-condition: oklch(0.48 0.08 85);
+  --node-revision: oklch(0.48 0.08 40);
+  --node-end: oklch(0.4 0.02 250);
 }
 
 .light {
@@ -129,6 +139,11 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.72 0.15 277);
+  --node-start: var(--primary);
+  --node-approval: oklch(0.78 0.07 250);
+  --node-condition: oklch(0.82 0.07 85);
+  --node-revision: oklch(0.8 0.07 40);
+  --node-end: oklch(0.78 0.02 250);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -160,7 +175,37 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.72 0.15 277);
+    --node-start: var(--primary);
+    --node-approval: oklch(0.78 0.07 250);
+    --node-condition: oklch(0.82 0.07 85);
+    --node-revision: oklch(0.8 0.07 40);
+    --node-end: oklch(0.78 0.02 250);
   }
+}
+
+.workflow-node[data-node-type="start"] { --node-accent: var(--node-start); }
+.workflow-node[data-node-type="approval"] { --node-accent: var(--node-approval); }
+.workflow-node[data-node-type="condition"] { --node-accent: var(--node-condition); }
+.workflow-node[data-node-type="revision"] { --node-accent: var(--node-revision); }
+.workflow-node[data-node-type="end"] { --node-accent: var(--node-end); }
+
+.react-flow {
+  --xy-background-color: var(--background);
+  --xy-background-pattern-color: var(--border);
+  --xy-node-color: var(--foreground);
+  --xy-node-background-color: var(--card);
+  --xy-node-border-color: var(--border);
+  --xy-edge-stroke: var(--muted-foreground);
+  --xy-edge-stroke-selected: var(--primary);
+  --xy-connectionline-stroke: var(--primary);
+  --xy-minimap-background-color: var(--card);
+  --xy-minimap-mask-background-color: color-mix(in oklch, var(--background) 55%, transparent);
+  --xy-minimap-node-background-color: var(--muted);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--muted);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-border-color: var(--border);
+  --xy-attribution-background-color: transparent;
 }
 
 @layer base {

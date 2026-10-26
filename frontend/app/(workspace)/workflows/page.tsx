@@ -1,17 +1,10 @@
 import type { Metadata } from "next";
-import { GitBranch } from "lucide-react";
-import { ModulePlaceholder } from "@/components/modules/module-placeholder";
+import { WorkflowListScreen } from "@/components/workflows/workflow-list-screen";
 
 export const metadata: Metadata = {
   title: "Workflows",
 };
 
 export default function WorkflowsPage() {
-  return (
-    <ModulePlaceholder
-      title="Workflows"
-      icon={GitBranch}
-      description="Workflow definitions will appear here when a workflow API exists."
-    />
-  );
+  return <WorkflowListScreen />;
 }

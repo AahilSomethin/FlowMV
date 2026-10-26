@@ -24,13 +24,18 @@ function ShellSidebarTrigger() {
 function ShellFrame({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { pending } = useWorkspaceTransition();
+  const pathname = usePathname();
+  const canvas = /^\/workflows\/[^/]+\/edit$/.test(pathname);
   const organizationKey = user?.current_organization?.uuid ?? "none";
 
   return (
     <TooltipProvider>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset id="main" className="min-h-svh min-w-0">
+        <SidebarInset
+          id="main"
+          className={canvas ? "flex h-dvh max-h-dvh min-h-0 min-w-0 flex-col overflow-hidden" : "min-h-svh min-w-0"}
+        >
         <a
           href="#content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:ring-3 focus:ring-ring"
@@ -46,16 +51,28 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
             <AccountMenu />
           </div>
         </header>
-        <div id="content" className="flex min-h-0 flex-1 flex-col">
-          <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:p-6">
-            {pending ? (
-              <LoadingState label="Switching workspace" />
+        <div id="content" className={canvas ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "flex min-h-0 flex-1 flex-col"}>
+          {canvas ? (
+            pending ? (
+              <div className="p-4">
+                <LoadingState label="Switching workspace" />
+              </div>
             ) : (
-              <div key={organizationKey} className="flex flex-col gap-6">
+              <div key={organizationKey} className="flex min-h-0 flex-1 flex-col">
                 {children}
               </div>
-            )}
-          </div>
+            )
+          ) : (
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:p-6">
+              {pending ? (
+                <LoadingState label="Switching workspace" />
+              ) : (
+                <div key={organizationKey} className="flex flex-col gap-6">
+                  {children}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </SidebarInset>
       </SidebarProvider>

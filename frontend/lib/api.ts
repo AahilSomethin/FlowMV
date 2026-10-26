@@ -18,20 +18,36 @@ export type User = {
   organizations: OrganizationSummary[];
 };
 
+export type ApiViolation = {
+  code: string;
+  message: string;
+  node_id: string | null;
+  edge_id: string | null;
+  field_id: string | null;
+};
+
 type ErrorBody = {
   message?: string;
   errors?: Record<string, string[]>;
+  violations?: ApiViolation[];
 };
 
 export class ApiError extends Error {
   readonly status: number;
   readonly errors: Record<string, string[]>;
+  readonly violations: ApiViolation[];
 
-  constructor(message: string, status: number, errors: Record<string, string[]> = {}) {
+  constructor(
+    message: string,
+    status: number,
+    errors: Record<string, string[]> = {},
+    violations: ApiViolation[] = [],
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.errors = errors;
+    this.violations = violations;
   }
 }
 
@@ -126,11 +142,11 @@ async function send<T>(path: string, init: ApiInit): Promise<T> {
 
   if (response.status === 401) {
     notifyUnauthorized();
-    throw new ApiError(body.message ?? "Unauthenticated.", 401, body.errors ?? {});
+    throw new ApiError(body.message ?? "Unauthenticated.", 401, body.errors ?? {}, body.violations ?? []);
   }
 
   if (!response.ok) {
-    throw new ApiError(body.message ?? "Request failed.", response.status, body.errors ?? {});
+    throw new ApiError(body.message ?? "Request failed.", response.status, body.errors ?? {}, body.violations ?? []);
   }
 
   return (body.data ?? body) as T;

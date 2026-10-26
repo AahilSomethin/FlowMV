@@ -6,6 +6,9 @@ use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\MembershipController;
 use App\Http\Controllers\Api\V1\OrganizationController;
+use App\Http\Controllers\Api\V1\WorkflowController;
+use App\Http\Controllers\Api\V1\WorkflowDraftController;
+use App\Http\Controllers\Api\V1\WorkflowVersionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -26,9 +29,19 @@ Route::prefix('v1')->group(function () {
         Route::get('organizations', [OrganizationController::class, 'index']);
         Route::get('organizations/{organization}/members', [MembershipController::class, 'index']);
         Route::get('organizations/{organization}/invitations', [InvitationController::class, 'index']);
+        Route::get('organizations/{organization}/workflows', [WorkflowController::class, 'index']);
+        Route::get('organizations/{organization}/workflows/{workflow}', [WorkflowController::class, 'show']);
+        Route::get('organizations/{organization}/workflows/{workflow}/versions', [WorkflowVersionController::class, 'index']);
+        Route::get('organizations/{organization}/workflows/{workflow}/versions/{version}', [WorkflowVersionController::class, 'show']);
 
         Route::middleware('stateful.frontend')->group(function () {
             Route::post('organizations', [OrganizationController::class, 'store']);
+            Route::post('organizations/{organization}/workflows', [WorkflowController::class, 'store']);
+            Route::patch('organizations/{organization}/workflows/{workflow}', [WorkflowController::class, 'update']);
+            Route::put('organizations/{organization}/workflows/{workflow}/draft', [WorkflowDraftController::class, 'update']);
+            Route::post('organizations/{organization}/workflows/{workflow}/draft/validate', [WorkflowDraftController::class, 'validateDraft']);
+            Route::post('organizations/{organization}/workflows/{workflow}/publish', [WorkflowVersionController::class, 'store']);
+            Route::post('organizations/{organization}/workflows/{workflow}/archive', [WorkflowController::class, 'archive']);
             Route::post('organizations/{organization}/switch', [OrganizationController::class, 'switch']);
 
             Route::patch('organizations/{organization}/members/{membership}', [MembershipController::class, 'update']);

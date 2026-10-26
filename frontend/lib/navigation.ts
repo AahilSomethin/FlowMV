@@ -17,7 +17,15 @@ const STATIC_PATHS = new Set<string>([
 ]);
 
 export function workspaceNavItem(pathname: string) {
-  return WORKSPACE_NAV.find((item) => item.href === pathname) ?? null;
+  return (
+    WORKSPACE_NAV.find((item) => item.href === pathname) ??
+    WORKSPACE_NAV.find((item) => item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)) ??
+    null
+  );
+}
+
+function isWorkflowPath(path: string): boolean {
+  return path === "/workflows" || /^\/workflows\/[0-9a-f-]{36}(?:\/edit)?$/i.test(path);
 }
 
 export function safeNextPath(value: string | null | undefined): string {
@@ -38,7 +46,7 @@ export function safeNextPath(value: string | null | undefined): string {
   }
 
   const path = url.pathname;
-  const allowed = STATIC_PATHS.has(path) || path.startsWith("/verify-email/");
+  const allowed = STATIC_PATHS.has(path) || path.startsWith("/verify-email/") || isWorkflowPath(path);
 
   if (!allowed || path.includes("//")) {
     return "/dashboard";
