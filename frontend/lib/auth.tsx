@@ -146,13 +146,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    function onFocus() {
+    let lastRefresh = Date.now();
+
+    function onVisibility() {
+      if (document.visibilityState !== "visible" || Date.now() - lastRefresh < 60_000) {
+        return;
+      }
+
+      lastRefresh = Date.now();
       void refresh().catch(() => undefined);
     }
 
-    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
 
-    return () => window.removeEventListener("focus", onFocus);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [refresh, status]);
 
   const value = useMemo(

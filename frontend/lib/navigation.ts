@@ -28,6 +28,10 @@ function isWorkflowPath(path: string): boolean {
   return path === "/workflows" || /^\/workflows\/[0-9a-f-]{36}(?:\/edit)?$/i.test(path);
 }
 
+function isExecutionPath(path: string): boolean {
+  return path === "/requests/new" || /^\/(?:requests|tasks)\/[0-9a-f-]{36}$/i.test(path);
+}
+
 export function safeNextPath(value: string | null | undefined): string {
   if (!value || value.includes("\\") || value.includes("token=") || value.includes("#")) {
     return "/dashboard";
@@ -46,7 +50,7 @@ export function safeNextPath(value: string | null | undefined): string {
   }
 
   const path = url.pathname;
-  const allowed = STATIC_PATHS.has(path) || path.startsWith("/verify-email/") || isWorkflowPath(path);
+  const allowed = STATIC_PATHS.has(path) || path.startsWith("/verify-email/") || isWorkflowPath(path) || isExecutionPath(path);
 
   if (!allowed || path.includes("//")) {
     return "/dashboard";

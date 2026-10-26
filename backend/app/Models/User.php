@@ -83,6 +83,10 @@ class User extends Authenticatable
             }
         }
 
+        if ($this->current_organization_id !== null && $current === null) {
+            $this->forceFill(['current_organization_id' => null])->save();
+        }
+
         return [
             'current_organization' => $current,
             'organizations' => $organizations,

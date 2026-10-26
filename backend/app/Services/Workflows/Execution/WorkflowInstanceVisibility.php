@@ -5,7 +5,6 @@ namespace App\Services\Workflows\Execution;
 use App\Enums\OrganizationRole;
 use App\Enums\WorkflowTaskStatus;
 use App\Enums\WorkflowTaskType;
-use App\Models\Organization;
 use App\Models\User;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowTask;
@@ -82,45 +81,6 @@ class WorkflowInstanceVisibility
         }
 
         return $this->eligibility->role($user, $instance->organization_id) !== null;
-    }
-
-    /**
-     * Null means every instance in the organization. An array limits the list.
-     *
-     * @return list<int>|null
-     */
-    public function visibleIds(User $user, Organization $organization): ?array
-    {
-        $role = $this->eligibility->role($user, $organization->id);
-
-        if ($role === null) {
-            return [];
-        }
-
-        if ($role === OrganizationRole::Admin) {
-            return null;
-        }
-
-        $owned = WorkflowInstance::query()
-            ->where('organization_id', $organization->id)
-            ->where('submitted_by', $user->id)
-            ->pluck('id');
-        $related = WorkflowTask::query()
-            ->where('organization_id', $organization->id)
-            ->where(function ($query) use ($user) {
-                $query->where('completed_by', $user->id)->orWhere('assigned_user_id', $user->id);
-            })
-            ->pluck('workflow_instance_id');
-        $eligible = WorkflowTask::query()
-            ->where('organization_id', $organization->id)
-            ->where('status', WorkflowTaskStatus::Open)
-            ->where('task_type', WorkflowTaskType::Approval)
-            ->with('instance.version')
-            ->get()
-            ->filter(fn (WorkflowTask $task) => $this->canDecide($user, $task))
-            ->pluck('workflow_instance_id');
-
-        return $owned->merge($related)->merge($eligible)->unique()->values()->all();
     }
 
     /**

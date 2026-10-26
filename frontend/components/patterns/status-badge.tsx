@@ -7,6 +7,14 @@ export function RoleBadge({ role }: { role: OrganizationRole }) {
   return <Badge variant="outline">{roleLabel(role)}</Badge>;
 }
 
-export function StatusBadge({ children }: { children: ReactNode }) {
-  return <Badge variant="secondary">{children}</Badge>;
+export function StatusBadge({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "attention" | "danger";
+}) {
+  const variant = tone === "danger" ? "destructive" : tone === "attention" ? "outline" : "secondary";
+
+  return <Badge variant={variant}>{children}</Badge>;
 }

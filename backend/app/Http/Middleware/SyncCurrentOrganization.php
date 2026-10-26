@@ -13,7 +13,7 @@ class SyncCurrentOrganization
     {
         $user = $request->user();
 
-        if ($user instanceof User) {
+        if ($user instanceof User && $request->path() !== 'api/v1/me') {
             $user->syncCurrentOrganization();
         }
 

@@ -8,19 +8,22 @@ import { RoleBadge, StatusBadge } from "@/components/patterns/status-badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
-const unavailable = [
+const connected = [
   {
     href: "/tasks",
     label: "My Tasks",
     icon: ListTodo,
-    detail: "Assigned work will show up here after the task API exists.",
+    detail: "Review approvals and revisions assigned to you.",
   },
   {
     href: "/requests",
     label: "Requests",
     icon: Inbox,
-    detail: "Incoming requests are not stored yet.",
+    detail: "Start a published workflow and follow its progress.",
   },
+] as const;
+
+const unavailable = [
   {
     href: "/analytics",
     label: "Analytics",
@@ -85,10 +88,33 @@ export function DashboardScreen() {
         </div>
       </section>
       <section className="flex flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {connected.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div key={item.href} className="flex flex-col gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+                    <h3 className="truncate text-sm font-medium">{item.label}</h3>
+                  </div>
+                  <StatusBadge>Available</StatusBadge>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">{item.detail}</p>
+                <Button variant="outline" className="h-10 w-fit" asChild>
+                  <Link href={item.href}>Open {item.label}</Link>
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+      <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-medium">Not connected yet</h2>
           <p className="text-sm leading-6 text-muted-foreground">
-            These modules are part of the shell. They do not show counts, durations, or sample records.
+            Analytics stays out of this workspace until there is a real reporting source.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">

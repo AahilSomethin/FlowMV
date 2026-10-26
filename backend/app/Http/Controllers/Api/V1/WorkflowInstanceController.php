@@ -19,11 +19,17 @@ class WorkflowInstanceController extends Controller
 {
     public function index(ListWorkflowInstancesRequest $request, ListWorkflowInstances $list): JsonResponse
     {
-        $instances = $list($request->user(), $request->organization(), (int) $request->input('page', 1));
+        $instances = $list(
+            $request->user(),
+            $request->organization(),
+            (int) $request->input('page', 1),
+            $request->listStatus(),
+            $request->listSearch(),
+        );
 
         return response()->json([
             'data' => [
-                'items' => WorkflowInstanceResource::collection($instances->getCollection())->resolve(),
+                'items' => WorkflowInstanceResource::collection($instances->items())->resolve(),
                 'current_page' => $instances->currentPage(),
                 'last_page' => $instances->lastPage(),
                 'total' => $instances->total(),

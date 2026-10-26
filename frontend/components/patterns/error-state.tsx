@@ -28,6 +28,13 @@ export function describeApiError(error: unknown, fallback = "Could not complete 
     return { title: "Not found", description: error.message || "That record is no longer available." };
   }
 
+  if (error.status === 409) {
+    return {
+      title: "This changed",
+      description: error.message || "The record is no longer in the state this action expected.",
+    };
+  }
+
   if (error.status === 419) {
     return {
       title: "Security check failed",

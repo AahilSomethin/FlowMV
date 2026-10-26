@@ -9,19 +9,28 @@ use App\Models\WorkflowInstance;
 
 class ApprovalEligibility
 {
+    /** @var array<string, OrganizationRole|null> */
+    private array $roles = [];
+
     public function role(User $user, int $organizationId): ?OrganizationRole
     {
+        $key = $user->id.':'.$organizationId;
+
+        if (array_key_exists($key, $this->roles)) {
+            return $this->roles[$key];
+        }
+
         $role = OrganizationMembership::query()
             ->where('organization_id', $organizationId)
             ->where('user_id', $user->id)
             ->whereNull('revoked_at')
             ->value('role');
 
-        if ($role instanceof OrganizationRole) {
-            return $role;
-        }
+        $resolved = $role instanceof OrganizationRole
+            ? $role
+            : (is_string($role) ? OrganizationRole::tryFrom($role) : null);
 
-        return is_string($role) ? OrganizationRole::tryFrom($role) : null;
+        return $this->roles[$key] = $resolved;
     }
 
     /**

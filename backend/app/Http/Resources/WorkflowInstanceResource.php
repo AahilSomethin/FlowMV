@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\WorkflowInstanceStatus;
 use App\Models\WorkflowInstance;
+use App\Services\Workflows\Execution\NodeLabels;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,6 +20,7 @@ class WorkflowInstanceResource extends JsonResource
     {
         $detailed = (bool) $this->resource->getAttribute('present_timeline');
         $version = $this->relationLoaded('version') ? $this->version : null;
+        $labels = NodeLabels::forVersion($version);
 
         return [
             'uuid' => $this->uuid,
@@ -26,6 +28,7 @@ class WorkflowInstanceResource extends JsonResource
             'failure_code' => $this->failure_code?->value,
             'retryable' => $this->status === WorkflowInstanceStatus::Failed && $this->failure_code?->recoverable() === true,
             'current_node_id' => $this->current_node_id,
+            'current_node_label' => $version ? NodeLabels::text($labels, $this->current_node_id) : null,
             'started_at' => $this->started_at,
             'completed_at' => $this->completed_at,
             'workflow' => $this->relationLoaded('workflow') && $this->workflow ? [
@@ -48,6 +51,7 @@ class WorkflowInstanceResource extends JsonResource
                 'status' => $task->status->value,
                 'decision' => $task->decision?->value,
                 'node_id' => $task->node_id,
+                'node_label' => NodeLabels::text($labels, $task->node_id),
                 'assigned_role' => $task->assigned_role,
                 'assigned_at' => $task->assigned_at,
                 'completed_at' => $task->completed_at,
@@ -56,6 +60,7 @@ class WorkflowInstanceResource extends JsonResource
                 'uuid' => $event->uuid,
                 'event_type' => $event->event_type->value,
                 'node_id' => $event->node_id,
+                'node_label' => NodeLabels::text($labels, $event->node_id),
                 'payload' => $event->event_payload,
                 'created_at' => $event->created_at,
                 'actor' => $event->relationLoaded('actor') && $event->actor ? ['name' => $event->actor->name] : null,

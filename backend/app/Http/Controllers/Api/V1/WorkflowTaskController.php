@@ -19,11 +19,17 @@ class WorkflowTaskController extends Controller
 {
     public function index(ListWorkflowTasksRequest $request, ListEligibleWorkflowTasks $list): JsonResponse
     {
-        $tasks = $list($request->user(), $request->organization(), (int) $request->input('page', 1));
+        $tasks = $list(
+            $request->user(),
+            $request->organization(),
+            (int) $request->input('page', 1),
+            $request->listStatus(),
+            $request->listSearch(),
+        );
 
         return response()->json([
             'data' => [
-                'items' => WorkflowTaskResource::collection($tasks->getCollection())->resolve(),
+                'items' => WorkflowTaskResource::collection($tasks->items())->resolve(),
                 'current_page' => $tasks->currentPage(),
                 'last_page' => $tasks->lastPage(),
                 'total' => $tasks->total(),

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\WorkflowTask;
+use App\Services\Workflows\Execution\NodeLabels;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,6 +19,7 @@ class WorkflowTaskResource extends JsonResource
     {
         $instance = $this->relationLoaded('instance') ? $this->instance : null;
         $version = $instance?->relationLoaded('version') ? $instance->version : null;
+        $labels = NodeLabels::forVersion($version);
 
         return [
             'uuid' => $this->uuid,
@@ -25,6 +27,7 @@ class WorkflowTaskResource extends JsonResource
             'status' => $this->status->value,
             'decision' => $this->decision?->value,
             'node_id' => $this->node_id,
+            'node_label' => NodeLabels::text($labels, $this->node_id),
             'assigned_role' => $this->assigned_role,
             'assigned_at' => $this->assigned_at,
             'completed_at' => $this->completed_at,
@@ -32,6 +35,7 @@ class WorkflowTaskResource extends JsonResource
                 'uuid' => $instance->uuid,
                 'status' => $instance->status->value,
                 'current_node_id' => $instance->current_node_id,
+                'current_node_label' => NodeLabels::text($labels, $instance->current_node_id),
                 'submitted_data' => $instance->submitted_data,
                 'workflow' => $instance->relationLoaded('workflow') && $instance->workflow ? [
                     'uuid' => $instance->workflow->uuid,
@@ -40,6 +44,9 @@ class WorkflowTaskResource extends JsonResource
                 'workflow_version' => $version ? [
                     'uuid' => $version->uuid,
                     'version_number' => $version->version_number,
+                ] : null,
+                'submitted_by' => $instance->relationLoaded('submitter') && $instance->submitter ? [
+                    'name' => $instance->submitter->name,
                 ] : null,
                 'form_definition' => $version?->form_definition,
             ] : null,
