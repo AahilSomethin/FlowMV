@@ -1,0 +1,13 @@
+{
+    "name": "flowmv",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+      "dev": "concurrently -k -n NEXT,LARAVEL -c cyan,green \"npm run dev:frontend\" \"npm run dev:backend\"",
+      "dev:frontend": "npm run dev --prefix frontend",
+      "dev:backend": "cd backend && php artisan serve"
+    },
+    "devDependencies": {
+      "concurrently": "^9.2.1"
+    }
+  }
