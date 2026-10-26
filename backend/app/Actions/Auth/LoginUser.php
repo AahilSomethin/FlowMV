@@ -23,6 +23,7 @@ class LoginUser
 
         /** @var User $user */
         $user = $request->user();
+        $user->syncCurrentOrganization();
 
         return $user;
     }

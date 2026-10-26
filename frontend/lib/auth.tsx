@@ -25,7 +25,16 @@ type AuthContextValue = {
   login: (input: { email: string; password: string }) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  refresh: () => Promise<User>;
 };
+
+function normalizeUser(current: User): User {
+  return {
+    ...current,
+    current_organization: current.current_organization ?? null,
+    organizations: current.organizations ?? [],
+  };
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -42,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        setUser(current);
+        setUser(normalizeUser(current));
         setStatus("authenticated");
       })
       .catch(() => {
@@ -65,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify(input),
     });
 
-    setUser(current);
+    setUser(normalizeUser(current));
     setStatus("authenticated");
   }, []);
 
@@ -75,8 +84,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify(input),
     });
 
+    setUser(normalizeUser(current));
+    setStatus("authenticated");
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const current = normalizeUser(await api<User>("/api/v1/me"));
     setUser(current);
     setStatus("authenticated");
+
+    return current;
   }, []);
 
   const logout = useCallback(async () => {
@@ -92,9 +109,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (status !== "authenticated") {
+      return;
+    }
+
+    function onFocus() {
+      api<User>("/api/v1/me")
+        .then((current) => setUser(normalizeUser(current)))
+        .catch(() => undefined);
+    }
+
+    window.addEventListener("focus", onFocus);
+
+    return () => window.removeEventListener("focus", onFocus);
+  }, [status]);
+
   const value = useMemo(
-    () => ({ user, status, login, register, logout }),
-    [user, status, login, register, logout],
+    () => ({ user, status, login, register, logout, refresh }),
+    [user, status, login, register, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

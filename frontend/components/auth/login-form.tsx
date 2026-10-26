@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useAuth } from "@/lib/auth";
+import { safeNextPath } from "@/lib/navigation";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -22,15 +23,16 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-export function LoginForm() {
+export function LoginForm({ nextPath = null }: { nextPath?: string | null }) {
   const router = useRouter();
   const { login, status } = useAuth();
+  const destination = safeNextPath(nextPath);
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/dashboard");
+      router.replace(destination);
     }
-  }, [router, status]);
+  }, [destination, router, status]);
   const [formError, setFormError] = useState<string | null>(null);
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -42,7 +44,7 @@ export function LoginForm() {
 
     try {
       await login(values);
-      router.replace("/dashboard");
+      router.replace(destination);
     } catch (error) {
       setFormError(applyServerErrors(error, form.setError));
     }
@@ -55,7 +57,10 @@ export function LoginForm() {
       footer={
         <>
           New to FlowMV?{" "}
-          <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+          <Link
+            href={destination === "/dashboard" ? "/register" : `/register?next=${encodeURIComponent(destination)}`}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
             Create an account
           </Link>
         </>

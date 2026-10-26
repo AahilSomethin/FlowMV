@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useAuth } from "@/lib/auth";
+import { safeNextPath } from "@/lib/navigation";
 
 const registerSchema = z
   .object({
@@ -29,15 +30,16 @@ const registerSchema = z
 
 type RegisterValues = z.infer<typeof registerSchema>;
 
-export function RegisterForm() {
+export function RegisterForm({ nextPath = null }: { nextPath?: string | null }) {
   const router = useRouter();
   const { register: registerUser, status } = useAuth();
+  const destination = safeNextPath(nextPath);
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/dashboard");
+      router.replace(destination);
     }
-  }, [router, status]);
+  }, [destination, router, status]);
   const [formError, setFormError] = useState<string | null>(null);
   const form = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
@@ -54,7 +56,7 @@ export function RegisterForm() {
 
     try {
       await registerUser(values);
-      router.replace("/dashboard");
+      router.replace(destination);
     } catch (error) {
       setFormError(applyServerErrors(error, form.setError));
     }
@@ -67,7 +69,10 @@ export function RegisterForm() {
       footer={
         <>
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+          <Link
+            href={destination === "/dashboard" ? "/login" : `/login?next=${encodeURIComponent(destination)}`}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
             Sign in
           </Link>
         </>

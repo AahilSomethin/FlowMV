@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 trait InteractsWithSpa
 {
@@ -15,6 +16,8 @@ trait InteractsWithSpa
             'Referer' => 'http://localhost:3000/',
             'Accept' => 'application/json',
         ]);
+
+        Cache::flush();
     }
 
     /**

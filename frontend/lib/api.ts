@@ -1,9 +1,21 @@
+export type OrganizationRole = "admin" | "manager" | "employee";
+
+export type OrganizationSummary = {
+  uuid: string;
+  name: string;
+  slug: string;
+  role: OrganizationRole;
+  created_at: string | null;
+};
+
 export type User = {
   id: number;
   name: string;
   email: string;
   email_verified_at: string | null;
   created_at: string | null;
+  current_organization: OrganizationSummary | null;
+  organizations: OrganizationSummary[];
 };
 
 type ErrorBody = {

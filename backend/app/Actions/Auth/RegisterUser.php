@@ -8,12 +8,15 @@ use Illuminate\Support\Facades\Auth;
 
 class RegisterUser
 {
+    public function __construct(private SendEmailVerification $sendEmailVerification) {}
+
     public function __invoke(RegisterRequest $request): User
     {
         $user = User::query()->create($request->safe()->only(['name', 'email', 'password']));
 
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
+        ($this->sendEmailVerification)($user);
 
         return $user;
     }
