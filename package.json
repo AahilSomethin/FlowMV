@@ -4,8 +4,8 @@
     "private": true,
     "scripts": {
       "dev": "concurrently -k -n NEXT,LARAVEL -c cyan,green \"npm run dev:frontend\" \"npm run dev:backend\"",
-      "dev:frontend": "npm run dev --prefix frontend",
-      "dev:backend": "cd backend && php artisan serve"
+      "dev:frontend": "npm run dev --prefix frontend -- --hostname localhost --port 3000",
+      "dev:backend": "cd backend && php artisan serve --host=127.0.0.1 --port=8000"
     },
     "devDependencies": {
       "concurrently": "^9.2.1"
