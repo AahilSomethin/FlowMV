@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -10,6 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { stashInviteToken } from "@/lib/invitation-token";
+
+function subscribeInvite(listener: () => void) {
+  window.addEventListener("flowmv-invite", listener);
+
+  return () => window.removeEventListener("flowmv-invite", listener);
+}
+
+function readInviteTokenPresence(): boolean {
+  return stashInviteToken();
+}
 
 export function VerifyEmailScreen({
   id,
@@ -26,12 +36,7 @@ export function VerifyEmailScreen({
   const { status, refresh } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [hasInvite, setHasInvite] = useState(false);
-
-  useEffect(() => {
-    setHasInvite(stashInviteToken());
-  }, []);
+  const hasInvite = useSyncExternalStore(subscribeInvite, readInviteTokenPresence, () => false);
 
   useEffect(() => {
     if (status !== "guest") {
@@ -48,7 +53,6 @@ export function VerifyEmailScreen({
     }
 
     let active = true;
-    setPending(true);
 
     const path = `/api/v1/email/verify/${id}/${hash}?expires=${encodeURIComponent(expires)}&signature=${encodeURIComponent(signature)}`;
 
@@ -67,17 +71,14 @@ export function VerifyEmailScreen({
         }
 
         setError(caught instanceof ApiError ? caught.message : "This verification link is invalid.");
-      })
-      .finally(() => {
-        if (active) {
-          setPending(false);
-        }
       });
 
     return () => {
       active = false;
     };
   }, [expires, hash, id, refresh, signature, status]);
+
+  const pending = status === "authenticated" && !verified && !error && Boolean(expires) && Boolean(signature);
 
   return (
     <main className="flex flex-1 items-center justify-center p-4">

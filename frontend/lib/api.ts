@@ -35,6 +35,22 @@ export class ApiError extends Error {
   }
 }
 
+export type ApiInit = RequestInit & {
+  idempotencyKey?: string;
+};
+
+const RETRYABLE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "PUT", "DELETE"]);
+
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
+function notifyUnauthorized(): void {
+  unauthorizedHandler?.();
+}
+
 function apiOrigin(): string {
   return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 }
@@ -46,23 +62,38 @@ function readXsrfToken(): string | null {
 }
 
 async function ensureCsrfCookie(): Promise<void> {
-  const response = await fetch(`${apiOrigin()}/sanctum/csrf-cookie`, {
-    credentials: "include",
-    headers: { Accept: "application/json" },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiOrigin()}/sanctum/csrf-cookie`, {
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+  } catch {
+    throw new ApiError("Could not reach the FlowMV API.", 0);
+  }
 
   if (!response.ok) {
     throw new ApiError("Could not start a secure session.", response.status);
   }
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const method = (init.method ?? "GET").toUpperCase();
-  const headers = new Headers(init.headers);
+function canRetryAfter419(method: string, idempotencyKey: string | undefined): boolean {
+  return RETRYABLE_METHODS.has(method) || Boolean(idempotencyKey);
+}
+
+async function send<T>(path: string, init: ApiInit): Promise<T> {
+  const { idempotencyKey, ...requestInit } = init;
+  const method = (requestInit.method ?? "GET").toUpperCase();
+  const headers = new Headers(requestInit.headers);
   headers.set("Accept", "application/json");
 
-  if (init.body !== undefined && !headers.has("Content-Type")) {
+  if (requestInit.body !== undefined && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
+  }
+
+  if (idempotencyKey) {
+    headers.set("Idempotency-Key", idempotencyKey);
   }
 
   if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
@@ -78,7 +109,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   try {
     response = await fetch(`${apiOrigin()}${path}`, {
-      ...init,
+      ...requestInit,
       method,
       headers,
       credentials: "include",
@@ -93,9 +124,49 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const body = (await response.json().catch(() => ({}))) as ErrorBody & { data?: T };
 
+  if (response.status === 401) {
+    notifyUnauthorized();
+    throw new ApiError(body.message ?? "Unauthenticated.", 401, body.errors ?? {});
+  }
+
   if (!response.ok) {
     throw new ApiError(body.message ?? "Request failed.", response.status, body.errors ?? {});
   }
 
   return (body.data ?? body) as T;
+}
+
+async function confirmSession(): Promise<void> {
+  try {
+    await send("/api/v1/me", { method: "GET" });
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 0)) {
+      return;
+    }
+  }
+}
+
+export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const eligible = canRetryAfter419(method, init.idempotencyKey);
+
+  try {
+    return await send<T>(path, init);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 419) {
+      throw error;
+    }
+
+    if (eligible) {
+      await ensureCsrfCookie();
+
+      return send<T>(path, init);
+    }
+
+    if (path !== "/api/v1/me") {
+      await confirmSession();
+    }
+
+    throw error;
+  }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -11,21 +11,24 @@ import { api, ApiError, type OrganizationSummary } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { clearInviteToken, readInviteToken, scrubSecret, stashInviteToken } from "@/lib/invitation-token";
 
+function subscribeInvite(listener: () => void) {
+  window.addEventListener("flowmv-invite", listener);
+
+  return () => window.removeEventListener("flowmv-invite", listener);
+}
+
 export function AcceptInvitationScreen() {
   const router = useRouter();
   const { user, status, refresh } = useAuth();
-  const [ready, setReady] = useState(false);
-  const [hasToken, setHasToken] = useState(false);
+  const storedInvite = useSyncExternalStore(subscribeInvite, stashInviteToken, () => false);
+  const [dismissedInvite, setDismissedInvite] = useState(false);
+  const hasToken = storedInvite && !dismissedInvite;
+  const ready = useSyncExternalStore(subscribeInvite, () => true, () => false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [joined, setJoined] = useState<OrganizationSummary | null>(null);
   const [keptWorkspace, setKeptWorkspace] = useState(false);
-
-  useEffect(() => {
-    setHasToken(stashInviteToken());
-    setReady(true);
-  }, []);
 
   useEffect(() => {
     if (!ready || status !== "guest") {
@@ -40,7 +43,7 @@ export function AcceptInvitationScreen() {
     const previous = user?.current_organization?.uuid ?? null;
 
     if (!token) {
-      setHasToken(false);
+      setDismissedInvite(true);
       return;
     }
 
@@ -56,7 +59,7 @@ export function AcceptInvitationScreen() {
       const refreshed = await refresh();
       setJoined(organization);
       setKeptWorkspace(previous !== null && refreshed.current_organization?.uuid === previous && previous !== organization.uuid);
-      setHasToken(false);
+      setDismissedInvite(true);
     } catch (caught) {
       const message = scrubSecret(
         caught instanceof ApiError ? caught.message : "Could not accept this invitation.",
@@ -68,7 +71,7 @@ export function AcceptInvitationScreen() {
 
       if (!keep) {
         clearInviteToken();
-        setHasToken(false);
+        setDismissedInvite(true);
       }
     } finally {
       setPending(false);

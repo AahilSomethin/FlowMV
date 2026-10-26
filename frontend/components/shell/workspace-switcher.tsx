@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,13 +10,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useWorkspaceTransition } from "@/components/shell/workspace-transition";
 import { api, ApiError, type User } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { roleLabel } from "@/lib/organizations";
 
 export function WorkspaceSwitcher() {
-  const { user, refresh } = useAuth();
-  const [pending, setPending] = useState(false);
+  const { user, applySession } = useAuth();
+  const { pending, runChange } = useWorkspaceTransition();
   const [error, setError] = useState<string | null>(null);
   const current = user?.current_organization ?? null;
 
@@ -30,26 +31,25 @@ export function WorkspaceSwitcher() {
     }
 
     setError(null);
-    setPending(true);
 
     try {
-      await api<User>(`/api/v1/organizations/${uuid}/switch`, { method: "POST" });
-      await refresh();
+      await runChange(async () => {
+        const next = await api<User>(`/api/v1/organizations/${uuid}/switch`, { method: "POST" });
+        applySession(next);
+      });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "Could not switch workspace.");
-    } finally {
-      setPending(false);
     }
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className="flex min-w-0 max-w-full flex-col gap-1">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
             variant="outline"
-            className="h-10 max-w-full sm:max-w-64"
+            className="h-10 max-w-36 sm:max-w-64"
             disabled={pending}
             aria-label="Switch workspace"
           >
@@ -58,22 +58,27 @@ export function WorkspaceSwitcher() {
             <ChevronDown aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
-          {user.organizations.map((organization) => (
-            <DropdownMenuItem
-              key={organization.uuid}
-              onSelect={() => {
-                void choose(organization.uuid);
-              }}
-            >
-              <span className="min-w-0 flex-1 truncate">{organization.name}</span>
-              <Badge variant="outline">{roleLabel(organization.role)}</Badge>
-            </DropdownMenuItem>
-          ))}
+        <DropdownMenuContent align="end" className="w-72">
+          {user.organizations.map((organization) => {
+            const selected = organization.uuid === current?.uuid;
+
+            return (
+              <DropdownMenuItem
+                key={organization.uuid}
+                onSelect={() => {
+                  void choose(organization.uuid);
+                }}
+              >
+                <span className="min-w-0 flex-1 truncate">{organization.name}</span>
+                <Badge variant="outline">{roleLabel(organization.role)}</Badge>
+                {selected ? <Check aria-hidden="true" /> : null}
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="max-w-64 text-sm text-destructive">
           {error}
         </p>
       ) : null}

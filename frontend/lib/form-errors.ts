@@ -27,7 +27,7 @@ export function applyServerErrors<T extends FieldValues>(
   }
 
   if (error.status === 419) {
-    return "Your session expired. Refresh the page and try again.";
+    return "The security check failed before the request ran. Try again.";
   }
 
   if (!mapped) {

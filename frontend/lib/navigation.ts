@@ -1,4 +1,24 @@
-const STATIC_PATHS = new Set(["/dashboard", "/onboarding", "/team", "/invitations/accept"]);
+export const WORKSPACE_NAV = [
+  { href: "/dashboard", label: "Overview" },
+  { href: "/tasks", label: "My Tasks" },
+  { href: "/requests", label: "Requests" },
+  { href: "/workflows", label: "Workflows" },
+  { href: "/analytics", label: "Analytics" },
+  { href: "/team", label: "Team" },
+  { href: "/settings", label: "Settings" },
+] as const;
+
+export type WorkspaceHref = (typeof WORKSPACE_NAV)[number]["href"];
+
+const STATIC_PATHS = new Set<string>([
+  ...WORKSPACE_NAV.map((item) => item.href),
+  "/onboarding",
+  "/invitations/accept",
+]);
+
+export function workspaceNavItem(pathname: string) {
+  return WORKSPACE_NAV.find((item) => item.href === pathname) ?? null;
+}
 
 export function safeNextPath(value: string | null | undefined): string {
   if (!value || value.includes("\\") || value.includes("token=") || value.includes("#")) {

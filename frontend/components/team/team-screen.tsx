@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { AppShell } from "@/components/shell/app-shell";
+import { EmptyState } from "@/components/patterns/empty-state";
+import { ErrorState } from "@/components/patterns/error-state";
+import { LoadingState } from "@/components/patterns/loading-state";
+import { PageHeader } from "@/components/patterns/page-header";
 import { InviteMemberDialog } from "@/components/team/invite-member-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +32,7 @@ export function TeamScreen() {
   const role = current?.role;
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
   const [pendingRole, setPendingRole] = useState<string | null>(null);
@@ -38,19 +41,16 @@ export function TeamScreen() {
 
   useEffect(() => {
     if (!organizationId) {
-      setLoading(false);
       return;
     }
 
     let active = true;
-    setLoading(true);
-    setError(null);
-    setDenied(false);
 
     async function load() {
       try {
         const nextMembers = await api<Member[]>(`/api/v1/organizations/${organizationId}/members`);
         let nextInvitations: Invitation[] = [];
+        let nextDenied = false;
 
         if (role === "admin") {
           try {
@@ -60,7 +60,7 @@ export function TeamScreen() {
               throw caught;
             }
 
-            setDenied(true);
+            nextDenied = true;
             await refresh();
           }
         }
@@ -69,8 +69,11 @@ export function TeamScreen() {
           return;
         }
 
+        setDenied(nextDenied);
+        setError(null);
         setMembers(nextMembers);
         setInvitations(nextInvitations);
+        setLoadedKey(`${organizationId}:${role ?? ""}`);
       } catch (caught) {
         if (!active) {
           return;
@@ -81,12 +84,13 @@ export function TeamScreen() {
           setError(caught.status === 404 ? "This workspace is no longer available." : "You do not have access to this team.");
           await refresh().catch(() => undefined);
         } else {
+          setDenied(false);
           setError(caught instanceof ApiError ? caught.message : "Could not load the team.");
         }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
+
+        setMembers([]);
+        setInvitations([]);
+        setLoadedKey(`${organizationId}:${role ?? ""}`);
       }
     }
 
@@ -97,7 +101,14 @@ export function TeamScreen() {
     };
   }, [organizationId, refresh, role]);
 
-  const isAdmin = current?.role === "admin" && !denied;
+  const requestKey = organizationId ? `${organizationId}:${role ?? ""}` : null;
+  const currentData = requestKey !== null && loadedKey === requestKey;
+  const loading = requestKey !== null && !currentData;
+  const shownMembers = currentData ? members : [];
+  const shownInvitations = currentData ? invitations : [];
+  const shownError = currentData ? error : null;
+  const shownDenied = currentData && denied;
+  const isAdmin = current?.role === "admin" && !shownDenied;
 
   async function changeRole(member: Member, role: OrganizationRole) {
     if (!current || role === member.role) {
@@ -175,7 +186,7 @@ export function TeamScreen() {
   }
 
   return (
-    <AppShell>
+    <>
       {!current ? (
         <Card>
           <CardHeader>
@@ -185,23 +196,20 @@ export function TeamScreen() {
         </Card>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="truncate text-xl font-medium">{current.name}</h1>
-              <p className="text-sm text-muted-foreground">Your role is loaded from the server for this request.</p>
-            </div>
-            {isAdmin ? (
-              <InviteMemberDialog
-                organization={current}
-                onInvited={(invitation) => setInvitations((existing) => [...existing, invitation])}
-              />
-            ) : null}
-          </div>
-          {error ? (
-            <Alert variant="destructive">
-              <AlertTitle>{denied ? "Permission denied" : "Something went wrong"}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+          <PageHeader
+            title="Team"
+            description={`${current.name}. Your role is loaded from the server for this workspace.`}
+            actions={
+              isAdmin ? (
+                <InviteMemberDialog
+                  organization={current}
+                  onInvited={(invitation) => setInvitations((existing) => [...existing, invitation])}
+                />
+              ) : null
+            }
+          />
+          {shownError ? (
+            <ErrorState title={shownDenied ? "Permission denied" : "Something went wrong"} description={shownError} />
           ) : null}
           {!isAdmin ? (
             <Alert>
@@ -213,15 +221,14 @@ export function TeamScreen() {
             <CardHeader>
               <CardTitle>Members</CardTitle>
               <CardDescription>
-                {loading ? "Loading members" : members.length === 0 ? "No active members." : `${members.length} active`}
+                {loading ? "Loading members" : shownMembers.length === 0 ? "No active members." : `${shownMembers.length} active`}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  Loading the team
-                </p>
+                <LoadingState label="Loading the team" />
+              ) : shownMembers.length === 0 ? (
+                <EmptyState title="No active members" description="People who join this workspace will be listed here." />
               ) : (
                 <Table>
                   <TableHeader>
@@ -233,7 +240,7 @@ export function TeamScreen() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {members.map((member) => (
+                    {shownMembers.map((member) => (
                       <TableRow key={member.uuid}>
                         <TableCell className="font-medium">{member.name}</TableCell>
                         <TableCell className="max-w-48 truncate">{member.email}</TableCell>
@@ -283,10 +290,10 @@ export function TeamScreen() {
               <CardHeader>
                 <CardTitle>Pending invitations</CardTitle>
                 <CardDescription>
-                  {invitations.length === 0 ? "No pending invitations." : "These invitations have not been accepted."}
+                  {shownInvitations.length === 0 ? "No pending invitations." : "These invitations have not been accepted."}
                 </CardDescription>
               </CardHeader>
-              {invitations.length > 0 ? (
+              {shownInvitations.length > 0 ? (
                 <CardContent>
                   <Table>
                     <TableHeader>
@@ -298,7 +305,7 @@ export function TeamScreen() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {invitations.map((invitation) => (
+                      {shownInvitations.map((invitation) => (
                         <TableRow key={invitation.uuid}>
                           <TableCell className="max-w-48 truncate">{invitation.email}</TableCell>
                           <TableCell>
@@ -347,6 +354,6 @@ export function TeamScreen() {
           </Dialog>
         </>
       )}
-    </AppShell>
+    </>
   );
 }

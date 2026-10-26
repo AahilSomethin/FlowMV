@@ -7,6 +7,7 @@ import { Loader2, LogOut, Workflow } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { TextField } from "@/components/auth/text-field";
+import { ErrorState } from "@/components/patterns/error-state";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,6 +78,24 @@ export function CreateOrganizationForm() {
     } catch (error) {
       setFormError(applyServerErrors(error, form.setError));
     }
+  }
+
+  if (status === "unreachable") {
+    return (
+      <main className="flex flex-1 items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <ErrorState
+            title="Unable to load your account"
+            description="FlowMV could not reach your session. This does not sign you out."
+            action={
+              <Button type="button" className="h-10" onClick={() => void refresh().catch(() => undefined)}>
+                Try again
+              </Button>
+            }
+          />
+        </div>
+      </main>
+    );
   }
 
   if (status !== "authenticated" || !user || user.organizations.length > 0) {

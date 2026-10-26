@@ -8,9 +8,9 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api, ApiError, type User } from "@/lib/api";
+import { api, ApiError, setUnauthorizedHandler, type User } from "@/lib/api";
 
-type AuthStatus = "loading" | "authenticated" | "guest";
+type AuthStatus = "loading" | "authenticated" | "guest" | "unreachable";
 
 type RegisterInput = {
   name: string;
@@ -26,6 +26,7 @@ type AuthContextValue = {
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<User>;
+  applySession: (current: User) => void;
 };
 
 function normalizeUser(current: User): User {
@@ -42,6 +43,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
 
+  const markGuest = useCallback(() => {
+    setUser(null);
+    setStatus("guest");
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(markGuest);
+
+    return () => setUnauthorizedHandler(null);
+  }, [markGuest]);
+
   useEffect(() => {
     let active = true;
 
@@ -54,19 +66,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(normalizeUser(current));
         setStatus("authenticated");
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!active) {
           return;
         }
 
-        setUser(null);
-        setStatus("guest");
+        if (error instanceof ApiError && error.status === 401) {
+          markGuest();
+          return;
+        }
+
+        setStatus("unreachable");
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [markGuest]);
 
   const login = useCallback(async (input: { email: string; password: string }) => {
     const current = await api<User>("/api/v1/auth/login", {
@@ -88,26 +104,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("authenticated");
   }, []);
 
-  const refresh = useCallback(async () => {
-    const current = normalizeUser(await api<User>("/api/v1/me"));
-    setUser(current);
+  const applySession = useCallback((current: User) => {
+    setUser(normalizeUser(current));
     setStatus("authenticated");
-
-    return current;
   }, []);
+
+  const refresh = useCallback(async () => {
+    try {
+      const current = normalizeUser(await api<User>("/api/v1/me"));
+      setUser(current);
+      setStatus("authenticated");
+
+      return current;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        markGuest();
+      } else {
+        setStatus((current) => (current === "authenticated" ? current : "unreachable"));
+      }
+
+      throw error;
+    }
+  }, [markGuest]);
 
   const logout = useCallback(async () => {
     try {
       await api<void>("/api/v1/auth/logout", { method: "POST" });
+      markGuest();
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 401) {
-        throw error;
+      if (error instanceof ApiError && error.status === 401) {
+        markGuest();
+        return;
       }
-    } finally {
-      setUser(null);
-      setStatus("guest");
+
+      throw error;
     }
-  }, []);
+  }, [markGuest]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -115,19 +147,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     function onFocus() {
-      api<User>("/api/v1/me")
-        .then((current) => setUser(normalizeUser(current)))
-        .catch(() => undefined);
+      void refresh().catch(() => undefined);
     }
 
     window.addEventListener("focus", onFocus);
 
     return () => window.removeEventListener("focus", onFocus);
-  }, [status]);
+  }, [refresh, status]);
 
   const value = useMemo(
-    () => ({ user, status, login, register, logout, refresh }),
-    [user, status, login, register, logout, refresh],
+    () => ({ user, status, login, register, logout, refresh, applySession }),
+    [user, status, login, register, logout, refresh, applySession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
