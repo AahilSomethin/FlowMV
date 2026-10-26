@@ -28,6 +28,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { applyServerErrors } from "@/lib/form-errors";
 import type { WorkflowDetail, WorkflowVersionSummary } from "@/lib/workflows/types";
+import { visibleWorkflowGraph } from "@/lib/workflows/visible-graph";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(120),
@@ -97,9 +98,7 @@ export function WorkflowDetailScreen({ workflowId }: { workflowId: string }) {
     return <ErrorState title="Workflow unavailable" description={error ?? "This workflow could not be loaded."} />;
   }
 
-  const graph = workflow.draft?.graph_definition ?? workflow.published?.graph_definition;
-  const view = selectedVersion?.graph_definition ? selectedVersion : null;
-  const shown = view?.graph_definition ?? workflow.published?.graph_definition ?? graph;
+  const shown = visibleWorkflowGraph(workflow, selectedVersion?.graph_definition ?? null);
 
   async function archive() {
     try {
@@ -132,7 +131,8 @@ export function WorkflowDetailScreen({ workflowId }: { workflowId: string }) {
       setNotice(`Published version ${next.current_version_number ?? ""}.`);
     } catch (caught) {
       setPublishOpen(false);
-      setNotice(caught instanceof ApiError ? caught.message : "Could not publish this workflow.");
+      const details = caught instanceof ApiError ? caught.violations.map((violation) => violation.message).filter(Boolean) : [];
+      setNotice(caught instanceof ApiError ? [caught.message, ...details].join(" ") : "Could not publish this workflow.");
     }
   }
 
@@ -179,6 +179,18 @@ export function WorkflowDetailScreen({ workflowId }: { workflowId: string }) {
         </Alert>
       ) : null}
       {workflow.can_update ? <MetadataForm organizationId={organizationId} workflow={workflow} onSaved={setWorkflow} /> : null}
+      <p className="text-sm text-muted-foreground">
+        {selectedVersion
+          ? `Showing version ${selectedVersion.version_number}. Publishing uses the saved draft.`
+          : workflow.draft
+            ? "Showing the saved draft. Publishing uses this draft."
+            : "Showing the published version."}
+      </p>
+      {selectedVersion ? (
+        <Button type="button" variant="outline" className="self-start" onClick={() => setSelectedVersion(null)}>
+          Show current graph
+        </Button>
+      ) : null}
       {shown ? (
         <div className="h-[min(70dvh,36rem)] min-h-64 overflow-hidden rounded-xl ring-1 ring-foreground/10">
           <WorkflowCanvas

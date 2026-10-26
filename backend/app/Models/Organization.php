@@ -59,4 +59,9 @@ class Organization extends Model
     {
         return $this->hasMany(Workflow::class);
     }
+
+    public function workflowInstances(): HasMany
+    {
+        return $this->hasMany(WorkflowInstance::class);
+    }
 }

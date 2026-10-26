@@ -16,7 +16,7 @@ export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
       data-node-type={kind}
       role="group"
       className={cn(
-        "workflow-node w-56 rounded-xl bg-card px-3 py-2 text-card-foreground shadow-sm ring-1 ring-[var(--node-accent)]",
+        "workflow-node relative w-56 rounded-xl bg-card px-3 py-2 text-card-foreground shadow-sm ring-1 ring-[var(--node-accent)]",
         selected && "ring-2",
         data.invalid && "ring-destructive",
       )}

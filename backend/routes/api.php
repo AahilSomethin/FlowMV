@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\MembershipController;
 use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\WorkflowController;
 use App\Http\Controllers\Api\V1\WorkflowDraftController;
+use App\Http\Controllers\Api\V1\WorkflowInstanceController;
+use App\Http\Controllers\Api\V1\WorkflowTaskController;
 use App\Http\Controllers\Api\V1\WorkflowVersionController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,10 @@ Route::prefix('v1')->group(function () {
         Route::get('organizations/{organization}/workflows/{workflow}', [WorkflowController::class, 'show']);
         Route::get('organizations/{organization}/workflows/{workflow}/versions', [WorkflowVersionController::class, 'index']);
         Route::get('organizations/{organization}/workflows/{workflow}/versions/{version}', [WorkflowVersionController::class, 'show']);
+        Route::get('organizations/{organization}/instances', [WorkflowInstanceController::class, 'index']);
+        Route::get('organizations/{organization}/instances/{instance}', [WorkflowInstanceController::class, 'show']);
+        Route::get('organizations/{organization}/tasks', [WorkflowTaskController::class, 'index']);
+        Route::get('organizations/{organization}/tasks/{task}', [WorkflowTaskController::class, 'show']);
 
         Route::middleware('stateful.frontend')->group(function () {
             Route::post('organizations', [OrganizationController::class, 'store']);
@@ -42,6 +48,10 @@ Route::prefix('v1')->group(function () {
             Route::post('organizations/{organization}/workflows/{workflow}/draft/validate', [WorkflowDraftController::class, 'validateDraft']);
             Route::post('organizations/{organization}/workflows/{workflow}/publish', [WorkflowVersionController::class, 'store']);
             Route::post('organizations/{organization}/workflows/{workflow}/archive', [WorkflowController::class, 'archive']);
+            Route::post('organizations/{organization}/workflows/{workflow}/instances', [WorkflowInstanceController::class, 'store']);
+            Route::post('organizations/{organization}/instances/{instance}/retry', [WorkflowInstanceController::class, 'retry']);
+            Route::post('organizations/{organization}/tasks/{task}/decisions', [WorkflowTaskController::class, 'decide']);
+            Route::post('organizations/{organization}/tasks/{task}/revisions', [WorkflowTaskController::class, 'revise']);
             Route::post('organizations/{organization}/switch', [OrganizationController::class, 'switch']);
 
             Route::patch('organizations/{organization}/members/{membership}', [MembershipController::class, 'update']);
