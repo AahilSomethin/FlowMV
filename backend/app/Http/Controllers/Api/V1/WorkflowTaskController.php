@@ -39,7 +39,12 @@ class WorkflowTaskController extends Controller
 
     public function show(ShowWorkflowTaskRequest $request): WorkflowTaskResource
     {
-        return new WorkflowTaskResource($request->task()->load(['instance.workflow', 'instance.version', 'instance.submitter']));
+        return new WorkflowTaskResource($request->task()->load([
+            'decisionSnapshot',
+            'instance.workflow',
+            'instance.version',
+            'instance.submitter',
+        ]));
     }
 
     public function decide(

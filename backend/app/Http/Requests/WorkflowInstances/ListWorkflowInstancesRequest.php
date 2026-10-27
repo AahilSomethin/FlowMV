@@ -22,6 +22,11 @@ class ListWorkflowInstancesRequest extends ExecutionRequest
         return [
             'page' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', 'string', Rule::enum(WorkflowInstanceStatus::class)],
+            'workflow' => [
+                'nullable',
+                'uuid',
+                Rule::exists('workflows', 'uuid')->where(fn ($query) => $query->where('organization_id', $this->organization()->id)),
+            ],
             'search' => ['nullable', 'string', 'max:120'],
         ];
     }
@@ -36,5 +41,10 @@ class ListWorkflowInstancesRequest extends ExecutionRequest
         $search = trim($this->string('search')->toString());
 
         return $search === '' ? null : $search;
+    }
+
+    public function workflowUuid(): ?string
+    {
+        return $this->filled('workflow') ? $this->string('workflow')->toString() : null;
     }
 }

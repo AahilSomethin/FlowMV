@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { DecisionRecord } from "@/components/analytics/decision-record";
 import { ReadOnlyFields } from "@/components/execution/dynamic-form";
 import { InstanceStatusBadge } from "@/components/execution/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -164,8 +165,18 @@ export function RequestDetailScreen() {
             ) : null}
           </section>
           <section className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-            <h2 className="text-sm font-medium">Submitted fields</h2>
+            <h2 className="text-sm font-medium">Current submission</h2>
             <ReadOnlyFields definition={instance.form_definition} data={instance.submitted_data} />
+            {(instance.tasks ?? [])
+              .filter((task) => task.task_type === "approval" && task.status === "completed")
+              .map((task) => (
+                <DecisionRecord
+                  key={task.uuid}
+                  task={task}
+                  definition={instance.form_definition}
+                  current={instance.submitted_data}
+                />
+              ))}
           </section>
           <section className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
             <h2 className="text-sm font-medium">Decisions</h2>

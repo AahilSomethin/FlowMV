@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\WorkflowController;
 use App\Http\Controllers\Api\V1\WorkflowDraftController;
 use App\Http\Controllers\Api\V1\WorkflowInstanceController;
+use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\WorkflowTaskController;
 use App\Http\Controllers\Api\V1\WorkflowVersionController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +41,10 @@ Route::prefix('v1')->group(function () {
         Route::get('organizations/{organization}/instances/{instance}', [WorkflowInstanceController::class, 'show']);
         Route::get('organizations/{organization}/tasks', [WorkflowTaskController::class, 'index']);
         Route::get('organizations/{organization}/tasks/{task}', [WorkflowTaskController::class, 'show']);
+        Route::get('organizations/{organization}/analytics', [AnalyticsController::class, 'show']);
+        Route::get('organizations/{organization}/analytics/export', [AnalyticsController::class, 'export']);
+        Route::get('organizations/{organization}/audit', [AuditController::class, 'index']);
+        Route::get('organizations/{organization}/audit/export', [AuditController::class, 'export']);
 
         Route::middleware('stateful.frontend')->group(function () {
             Route::post('organizations', [OrganizationController::class, 'store']);

@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\SnapshotReason;
 use App\Enums\WorkflowTaskDecision;
 use App\Enums\WorkflowTaskStatus;
 use App\Enums\WorkflowTaskType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -80,5 +82,11 @@ class WorkflowTask extends Model
     public function completer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function decisionSnapshot(): HasOne
+    {
+        return $this->hasOne(WorkflowSubmissionSnapshot::class, 'workflow_task_id')
+            ->where('reason', SnapshotReason::ApprovalDecision->value);
     }
 }

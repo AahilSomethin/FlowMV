@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { DecisionRecord } from "@/components/analytics/decision-record";
 import { DynamicForm, ReadOnlyFields } from "@/components/execution/dynamic-form";
 import { ConfirmDecisionDialog } from "@/components/execution/confirm-decision-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -135,8 +136,9 @@ export function TaskDetail({
         </Alert>
       ) : null}
       <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-medium">Submitted fields</h3>
+        <h3 className="text-sm font-medium">Current submission</h3>
         <ReadOnlyFields definition={instance?.form_definition} data={instance?.submitted_data} />
+        <DecisionRecord task={task} definition={instance?.form_definition} current={instance?.submitted_data} />
       </section>
       {revision && instance?.form_definition ? (
         <section className="flex flex-col gap-3">

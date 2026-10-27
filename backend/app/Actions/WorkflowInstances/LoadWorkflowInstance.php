@@ -20,6 +20,7 @@ class LoadWorkflowInstance
             'version',
             'submitter',
             'tasks',
+            'tasks.decisionSnapshot',
             'events' => fn ($query) => $query->orderBy('id')->with('actor'),
         ]);
         $fresh->setAttribute('present_timeline', true);

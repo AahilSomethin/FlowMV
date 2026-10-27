@@ -45,6 +45,10 @@ export type InstanceTask = {
   assigned_role: string | null;
   assigned_at: string;
   completed_at: string | null;
+  decision_snapshot?: {
+    captured_at: string;
+    submitted_data: Record<string, unknown>;
+  } | null;
 };
 
 export type InstanceEvent = {
@@ -85,6 +89,10 @@ export type WorkflowTask = {
   assigned_role: string | null;
   assigned_at: string;
   completed_at: string | null;
+  decision_snapshot?: {
+    captured_at: string;
+    submitted_data: Record<string, unknown>;
+  } | null;
   instance: {
     uuid: string;
     status: InstanceStatus;
@@ -304,7 +312,7 @@ export function displayValue(value: unknown): string {
 
 export function listInstances(
   organizationId: string,
-  params: { page: number; status?: string; search?: string },
+  params: { page: number; status?: string; search?: string; workflow?: string },
 ): Promise<Page<WorkflowInstance>> {
   return api<Page<WorkflowInstance>>(`/api/v1/organizations/${organizationId}/instances?${query(params)}`);
 }

@@ -2,6 +2,7 @@
 
 namespace App\Actions\WorkflowInstances;
 
+use App\Enums\SnapshotReason;
 use App\Enums\WorkflowEventType;
 use App\Enums\WorkflowFailureCode;
 use App\Enums\WorkflowInstanceStatus;
@@ -15,6 +16,7 @@ use App\Models\WorkflowInstance;
 use App\Models\WorkflowVersion;
 use App\Services\Workflows\Execution\FormSubmissionValidator;
 use App\Services\Workflows\Execution\PublishedGraph;
+use App\Services\Workflows\Execution\SubmissionSnapshotWriter;
 use App\Services\Workflows\Execution\WorkflowEngine;
 use App\Services\Workflows\Execution\WorkflowEventWriter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -27,6 +29,7 @@ class StartWorkflowInstance
         private readonly FormSubmissionValidator $forms,
         private readonly WorkflowEngine $engine,
         private readonly WorkflowEventWriter $events,
+        private readonly SubmissionSnapshotWriter $snapshots,
         private readonly LoadWorkflowInstance $loader,
     ) {}
 
@@ -79,6 +82,7 @@ class StartWorkflowInstance
                 'submitted_data' => $submitted,
                 'started_at' => now(),
             ]);
+            $this->snapshots->capture($instance, SnapshotReason::Initial);
 
             $this->events->record($instance, $user, WorkflowEventType::InstanceStarted, $graph->startId(), [
                 'workflow_version_uuid' => $version->uuid,

@@ -25,6 +25,7 @@ class WorkflowInstanceController extends Controller
             (int) $request->input('page', 1),
             $request->listStatus(),
             $request->listSearch(),
+            $request->workflowUuid(),
         );
 
         return response()->json([

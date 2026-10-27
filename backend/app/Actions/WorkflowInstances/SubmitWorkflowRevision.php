@@ -2,6 +2,7 @@
 
 namespace App\Actions\WorkflowInstances;
 
+use App\Enums\SnapshotReason;
 use App\Enums\WorkflowEventType;
 use App\Enums\WorkflowFailureCode;
 use App\Enums\WorkflowInstanceStatus;
@@ -15,6 +16,7 @@ use App\Models\WorkflowTask;
 use App\Services\Workflows\Execution\FormSubmissionValidator;
 use App\Services\Workflows\Execution\PinnedWorkflowVersion;
 use App\Services\Workflows\Execution\PublishedGraph;
+use App\Services\Workflows\Execution\SubmissionSnapshotWriter;
 use App\Services\Workflows\Execution\WorkflowEngine;
 use App\Services\Workflows\Execution\WorkflowEventWriter;
 use App\Services\Workflows\Execution\WorkflowInstanceState;
@@ -32,6 +34,7 @@ class SubmitWorkflowRevision
         private readonly WorkflowInstanceState $state,
         private readonly WorkflowEngine $engine,
         private readonly WorkflowEventWriter $events,
+        private readonly SubmissionSnapshotWriter $snapshots,
         private readonly LoadWorkflowInstance $loader,
     ) {}
 
@@ -68,6 +71,7 @@ class SubmitWorkflowRevision
             ])->save();
             $instance->submitted_data = $submitted;
             $instance->save();
+            $this->snapshots->capture($instance, SnapshotReason::RevisionSubmitted, $lockedTask);
 
             $attempts = (int) WorkflowRevisionCounter::query()
                 ->where('workflow_instance_id', $instance->id)

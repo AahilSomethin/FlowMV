@@ -31,6 +31,10 @@ class WorkflowTaskResource extends JsonResource
             'assigned_role' => $this->assigned_role,
             'assigned_at' => $this->assigned_at,
             'completed_at' => $this->completed_at,
+            'decision_snapshot' => $this->when(
+                $this->relationLoaded('decisionSnapshot'),
+                fn () => $this->decisionSnapshot?->decisionPayload(),
+            ),
             'instance' => $instance ? [
                 'uuid' => $instance->uuid,
                 'status' => $instance->status->value,

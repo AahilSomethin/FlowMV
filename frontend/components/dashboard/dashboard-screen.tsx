@@ -21,14 +21,11 @@ const connected = [
     icon: Inbox,
     detail: "Start a published workflow and follow its progress.",
   },
-] as const;
-
-const unavailable = [
   {
     href: "/analytics",
     label: "Analytics",
     icon: BarChart3,
-    detail: "There is no reporting data to chart.",
+    detail: "Review request outcomes, waits, and the audit log for this workspace.",
   },
 ] as const;
 
@@ -100,35 +97,6 @@ export function DashboardScreen() {
                     <h3 className="truncate text-sm font-medium">{item.label}</h3>
                   </div>
                   <StatusBadge>Available</StatusBadge>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">{item.detail}</p>
-                <Button variant="outline" className="h-10 w-fit" asChild>
-                  <Link href={item.href}>Open {item.label}</Link>
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-base font-medium">Not connected yet</h2>
-          <p className="text-sm leading-6 text-muted-foreground">
-            Analytics stays out of this workspace until there is a real reporting source.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {unavailable.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <div key={item.href} className="flex flex-col gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
-                    <h3 className="truncate text-sm font-medium">{item.label}</h3>
-                  </div>
-                  <StatusBadge>Not available</StatusBadge>
                 </div>
                 <p className="text-sm leading-6 text-muted-foreground">{item.detail}</p>
                 <Button variant="outline" className="h-10 w-fit" asChild>

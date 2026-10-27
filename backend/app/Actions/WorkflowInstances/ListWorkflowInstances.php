@@ -4,6 +4,7 @@ namespace App\Actions\WorkflowInstances;
 
 use App\Models\Organization;
 use App\Models\User;
+use App\Models\Workflow;
 use App\Models\WorkflowInstance;
 use App\Services\Workflows\Execution\TaskEligibilityQuery;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -19,6 +20,7 @@ class ListWorkflowInstances
         int $page,
         ?string $status = null,
         ?string $search = null,
+        ?string $workflowUuid = null,
     ): LengthAwarePaginator {
         $query = WorkflowInstance::query()
             ->where('workflow_instances.organization_id', $organization->id)
@@ -29,6 +31,14 @@ class ListWorkflowInstances
 
         if ($status !== null && $status !== '') {
             $query->where('workflow_instances.status', $status);
+        }
+
+        if ($workflowUuid !== null && $workflowUuid !== '') {
+            $workflowId = Workflow::query()
+                ->where('organization_id', $organization->id)
+                ->where('uuid', $workflowUuid)
+                ->value('id');
+            $query->where('workflow_instances.workflow_id', $workflowId ?? 0);
         }
 
         if ($search !== null && $search !== '') {

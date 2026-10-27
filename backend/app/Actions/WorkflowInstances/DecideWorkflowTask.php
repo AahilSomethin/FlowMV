@@ -2,6 +2,7 @@
 
 namespace App\Actions\WorkflowInstances;
 
+use App\Enums\SnapshotReason;
 use App\Enums\WorkflowEventType;
 use App\Enums\WorkflowFailureCode;
 use App\Enums\WorkflowInstanceStatus;
@@ -14,6 +15,7 @@ use App\Models\WorkflowInstance;
 use App\Models\WorkflowTask;
 use App\Services\Workflows\Execution\PinnedWorkflowVersion;
 use App\Services\Workflows\Execution\PublishedGraph;
+use App\Services\Workflows\Execution\SubmissionSnapshotWriter;
 use App\Services\Workflows\Execution\WorkflowEngine;
 use App\Services\Workflows\Execution\WorkflowEventWriter;
 use App\Services\Workflows\Execution\WorkflowInstanceState;
@@ -30,6 +32,7 @@ class DecideWorkflowTask
         private readonly WorkflowInstanceState $state,
         private readonly WorkflowEngine $engine,
         private readonly WorkflowEventWriter $events,
+        private readonly SubmissionSnapshotWriter $snapshots,
         private readonly LoadWorkflowInstance $loader,
     ) {}
 
@@ -52,6 +55,8 @@ class DecideWorkflowTask
                 'completed_at' => now(),
                 'completed_by' => $user->id,
             ])->save();
+
+            $this->snapshots->capture($instance, SnapshotReason::ApprovalDecision, $lockedTask);
 
             $this->events->record(
                 $instance,

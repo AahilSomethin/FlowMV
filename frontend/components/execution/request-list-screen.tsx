@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Inbox } from "lucide-react";
 import { InstanceStatusBadge } from "@/components/execution/status-badge";
 import { ListPager } from "@/components/execution/list-pager";
@@ -35,9 +36,10 @@ export function RequestListScreen() {
   const [lastPage, setLastPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | InstanceStatus>("all");
+  const workflow = useSearchParams().get("workflow") ?? "all";
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const requestKey = organizationId ? `${organizationId}:${page}:${status}:${search.trim()}` : null;
+  const requestKey = organizationId ? `${organizationId}:${page}:${status}:${workflow}:${search.trim()}` : null;
 
   useEffect(() => {
     if (!organizationId) {
@@ -50,6 +52,7 @@ export function RequestListScreen() {
         page,
         status: status === "all" ? undefined : status,
         search: search.trim() || undefined,
+        workflow: workflow === "all" ? undefined : workflow,
       })
         .then((result) => {
           if (!active) {
@@ -60,7 +63,7 @@ export function RequestListScreen() {
           setTotal(result.total);
           setLastPage(result.last_page);
           setError(null);
-          setLoadedKey(`${organizationId}:${page}:${status}:${search.trim()}`);
+          setLoadedKey(`${organizationId}:${page}:${status}:${workflow}:${search.trim()}`);
         })
         .catch((caught: unknown) => {
           if (!active) {
@@ -69,7 +72,7 @@ export function RequestListScreen() {
 
           setItems([]);
           setError(describeApiError(caught, "Could not load requests.").description);
-          setLoadedKey(`${organizationId}:${page}:${status}:${search.trim()}`);
+          setLoadedKey(`${organizationId}:${page}:${status}:${workflow}:${search.trim()}`);
         });
     }, 200);
 
@@ -77,7 +80,7 @@ export function RequestListScreen() {
       active = false;
       window.clearTimeout(handle);
     };
-  }, [organizationId, page, search, status]);
+  }, [organizationId, page, search, status, workflow]);
 
   if (!organizationId || loadedKey !== requestKey) {
     return <LoadingState label="Loading requests" />;

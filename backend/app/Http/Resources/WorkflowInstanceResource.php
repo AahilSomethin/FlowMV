@@ -55,6 +55,9 @@ class WorkflowInstanceResource extends JsonResource
                 'assigned_role' => $task->assigned_role,
                 'assigned_at' => $task->assigned_at,
                 'completed_at' => $task->completed_at,
+                'decision_snapshot' => $task->relationLoaded('decisionSnapshot') && $task->decisionSnapshot
+                    ? $task->decisionSnapshot->decisionPayload()
+                    : null,
             ])->values()),
             'events' => $this->when($detailed && $this->relationLoaded('events'), fn () => $this->events->map(fn ($event) => [
                 'uuid' => $event->uuid,
