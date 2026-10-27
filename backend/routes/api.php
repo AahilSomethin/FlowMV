@@ -1,17 +1,17 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AcceptInvitationController;
+use App\Http\Controllers\Api\V1\AnalyticsController;
+use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\MembershipController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\WorkflowController;
 use App\Http\Controllers\Api\V1\WorkflowDraftController;
 use App\Http\Controllers\Api\V1\WorkflowInstanceController;
-use App\Http\Controllers\Api\V1\AnalyticsController;
-use App\Http\Controllers\Api\V1\AuditController;
-use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\WorkflowTaskController;
 use App\Http\Controllers\Api\V1\WorkflowVersionController;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
         Route::get('organizations/{organization}/tasks', [WorkflowTaskController::class, 'index']);
         Route::get('organizations/{organization}/tasks/{task}', [WorkflowTaskController::class, 'show']);
         Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('organizations/{organization}/notifications', [NotificationController::class, 'index']);
         Route::get('organizations/{organization}/analytics', [AnalyticsController::class, 'show']);
         Route::get('organizations/{organization}/analytics/export', [AnalyticsController::class, 'export']);
         Route::get('organizations/{organization}/audit', [AuditController::class, 'index']);
@@ -63,6 +64,7 @@ Route::prefix('v1')->group(function () {
             Route::post('organizations/{organization}/tasks/{task}/complete', [WorkflowTaskController::class, 'complete']);
             Route::post('organizations/{organization}/tasks/{task}/reassign', [WorkflowTaskController::class, 'reassign']);
             Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead']);
+            Route::post('organizations/{organization}/notifications/{notification}/read', [NotificationController::class, 'markOrganizationRead']);
             Route::post('organizations/{organization}/switch', [OrganizationController::class, 'switch']);
 
             Route::patch('organizations/{organization}/members/{membership}', [MembershipController::class, 'update']);

@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AccountMenu } from "@/components/shell/account-menu";
+import { NotificationsMenu } from "@/components/shell/notifications-menu";
 import { AppBreadcrumbs } from "@/components/shell/app-breadcrumbs";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { WorkspaceSwitcher } from "@/components/shell/workspace-switcher";
@@ -48,6 +49,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
           <AppBreadcrumbs />
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <WorkspaceSwitcher />
+            {organizationKey !== "none" ? <NotificationsMenu key={organizationKey} organizationId={organizationKey} /> : null}
             <AccountMenu />
           </div>
         </header>

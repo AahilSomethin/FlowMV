@@ -64,21 +64,27 @@ class User extends Authenticatable
      */
     public function organizationState(): array
     {
-        $memberships = $this->activeMemberships()->with('organization')->orderBy('created_at')->get();
+        $activeOrganizations = Organization::query()
+            ->join('organization_memberships', 'organization_memberships.organization_id', '=', 'organizations.id')
+            ->where('organization_memberships.user_id', $this->id)
+            ->whereNull('organization_memberships.revoked_at')
+            ->orderBy('organization_memberships.created_at')
+            ->select('organizations.*', 'organization_memberships.role as membership_role')
+            ->get();
         $organizations = [];
         $current = null;
 
-        foreach ($memberships as $membership) {
+        foreach ($activeOrganizations as $organization) {
             $summary = [
-                'uuid' => $membership->organization->uuid,
-                'name' => $membership->organization->name,
-                'slug' => $membership->organization->slug,
-                'role' => $membership->role->value,
-                'created_at' => $membership->organization->created_at,
+                'uuid' => $organization->uuid,
+                'name' => $organization->name,
+                'slug' => $organization->slug,
+                'role' => $organization->membership_role,
+                'created_at' => $organization->created_at,
             ];
             $organizations[] = $summary;
 
-            if ($membership->organization_id === $this->current_organization_id) {
+            if ($organization->id === $this->current_organization_id) {
                 $current = $summary;
             }
         }

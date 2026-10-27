@@ -86,6 +86,25 @@ const task: WorkflowTask = {
 };
 
 describe("execution screens", () => {
+  it("hides decisions when the backend denies action on a readable task", () => {
+    render(<TaskDetail organizationId="org-a" task={{ ...task, can_decide: false }} onUpdated={vi.fn()} />);
+    expect(screen.getByText("Need laptops")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+  });
+
+  it("lets an authorized administrator choose a member and submit keyed reassignment", async () => {
+    api.mockImplementation((path: string) => Promise.resolve(path.endsWith('/members') ? [{ user_id: 2, name: 'QA Manager', role: 'manager' }] : {}));
+    const updated = vi.fn();
+    render(<TaskDetail organizationId="org-a" task={{ ...task, task_type: "assignment", can_complete: false, can_reassign: true }} onUpdated={updated} />);
+    expect(screen.queryByRole("button", { name: "Mark complete" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Reassign task" }));
+    await userEvent.click(await screen.findByRole("combobox", { name: "New assignee" }));
+    await userEvent.click(screen.getByRole("option", { name: "QA Manager · manager" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm reassignment" }));
+    expect(updated).toHaveBeenCalledOnce();
+    expect(api).toHaveBeenLastCalledWith('/api/v1/organizations/org-a/tasks/task-1/reassign', expect.objectContaining({ method: 'POST', body: '{"assignee_user_id":2}', idempotencyKey: expect.any(String) }));
+  });
   beforeEach(() => {
     auth.org = "org-a";
     api.mockReset();

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { WorkflowFilter } from "@/components/analytics/workflow-filter";
 import { AnalyticsNav, ScopeBanner } from "@/components/analytics/analytics-frame";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";
@@ -25,7 +26,7 @@ import {
   type AnalyticsReport,
 } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
-import { instanceStatusLabel, listPublishedWorkflows, type InstanceStatus } from "@/lib/execution";
+import { instanceStatusLabel, type InstanceStatus } from "@/lib/execution";
 
 const presets = [
   { id: "7", label: "7 days", from: -6 },
@@ -53,35 +54,11 @@ export function AnalyticsScreen() {
   const [to, setTo] = useState(() => utcDay(0));
   const [workflow, setWorkflow] = useState("all");
   const [status, setStatus] = useState<"all" | InstanceStatus>("all");
-  const [workflows, setWorkflows] = useState<Array<{ uuid: string; name: string }>>([]);
   const [report, setReport] = useState<AnalyticsReport | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const query = queryFor(from, to, workflow, status);
   const requestKey = organizationId ? `${organizationId}:${queryString(query)}` : null;
-
-  useEffect(() => {
-    if (!organizationId) {
-      return;
-    }
-
-    let active = true;
-    void listPublishedWorkflows(organizationId, "", 1)
-      .then((result) => {
-        if (active) {
-          setWorkflows(result.items.filter((item) => item.name));
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setWorkflows([]);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [organizationId]);
 
   useEffect(() => {
     if (!organizationId) {
@@ -183,19 +160,7 @@ export function AnalyticsScreen() {
             setTo(event.target.value);
           }}
         />
-        <Select value={workflow} onValueChange={setWorkflow}>
-          <SelectTrigger className="h-10 w-full sm:w-56" aria-label="Filter by workflow">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All workflows</SelectItem>
-            {workflows.map((item) => (
-              <SelectItem key={item.uuid} value={item.uuid}>
-                {item.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <WorkflowFilter key={organizationId} organizationId={organizationId} value={workflow} onChange={setWorkflow} />
         <Select
           value={status}
           onValueChange={(value) => setStatus(value as "all" | InstanceStatus)}

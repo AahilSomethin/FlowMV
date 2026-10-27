@@ -2,9 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\OrganizationRole;
 use App\Enums\WorkflowTaskType;
 use App\Models\WorkflowTask;
+use App\Services\Workflows\Execution\ApprovalEligibility;
 use App\Services\Workflows\Execution\NodeLabels;
+use App\Services\Workflows\Execution\WorkflowInstanceVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,6 +32,22 @@ class WorkflowTaskResource extends JsonResource
 
         return [
             'uuid' => $this->uuid,
+            $this->mergeWhen($request->route('task') !== null, function () use ($request, $instance): array {
+                $user = $request->user();
+                $visibility = app(WorkflowInstanceVisibility::class);
+                $open = $this->status->value === 'open' && $instance?->current_node_id === $this->node_id;
+
+                return [
+                    'can_decide' => $open && $user !== null && $visibility->canDecide($user, $this->resource),
+                    'can_revise' => $open && $user !== null && $visibility->canRevise($user, $this->resource),
+                    'can_complete' => $open && $user !== null && $visibility->canCompleteAssignment($user, $this->resource),
+                ];
+            }),
+            'can_reassign' => $this->status->value === 'open'
+                && $this->task_type === WorkflowTaskType::Assignment
+                && $instance?->status->value === 'awaiting_assignment'
+                && $request->user() !== null
+                && app(ApprovalEligibility::class)->role($request->user(), $this->organization_id) === OrganizationRole::Admin,
             'task_type' => $this->task_type->value,
             'status' => $this->status->value,
             'decision' => $this->decision?->value,

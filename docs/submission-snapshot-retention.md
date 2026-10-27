@@ -1,21 +1,11 @@
 # Submission snapshot retention
 
-Decision-time copies of workflow submissions are stored in `workflow_submission_snapshots`. Each row is the form data that existed when a request started, when an approver decided, or when a revision was submitted. The table is forward-only: rows are not created for decisions that happened before this table existed, and application code does not update or delete them.
+Snapshots preserve submitted values at initial submission, approval decisions, and revision resubmission. They use the parent request's visibility rules and are excluded from analytics/audit listings and CSV. Never log payloads or backfill old decisions from current answers.
 
-## What is stored
+No retention policy has been approved. Destructive cleanup is disabled, has no schedule, and cannot be enabled by an environment switch. `php artisan workflow:snapshot-retention --days=365` is an explicit dry run: it counts snapshots belonging to Completed or Rejected requests whose completed_at is older than the proposed age. It prints counts only. Waiting/failed requests are excluded. `--apply` always fails without changing rows. The dry-run count is not authorization to delete and does not evaluate legal holds, jurisdiction, organization policy, or backup expiry.
 
-- The snapshot contains the same submitted fields the parent request already shows to someone allowed to open that request.
-- It does not add a new audience. Instance and task detail return an approval snapshot only after the existing request visibility check. Analytics, audit listings, and CSV exports do not select this table.
-- Application code does not write snapshot payloads to logs.
+Before implementing deletion, obtain a policy reference, authorized owner, retention period per organization/data class, legal-hold exclusions, audit requirements, backup/export retention, and approval evidence. Review candidates with a maintenance role separate from runtime. Record run UUID, policy reference, approver, cutoff, aggregate counts and affected internal IDs in a restricted maintenance audit store without payloads; preserve workflow_events and completed decisions. Delete in bounded, transactional, resumable batches, rechecking terminal status, cutoff and holds under locks. Require explicit opt-in configuration and per-run approval, test dry-run/apply equivalence and hold handling on disposable PostgreSQL, then approve a deployment. An unattended schedule must stay disabled until those checks pass.
 
-## How long a row is kept
+Snapshot UPDATE is rejected by the model and a PostgreSQL trigger. The runtime role should receive SELECT/INSERT only on snapshots. Parent foreign-key cascades do not require child DELETE permission. The existing workflow_events trigger also rejects cascaded DELETE, so deleting a real request or organization with events is currently blocked. An audit retention decision must resolve that deliberately; do not remove audit history to make snapshot cleanup work.
 
-A snapshot is kept for the life of its workflow instance. Deleting the instance or its organization removes the snapshot through the foreign-key cascade. That cascade is a database delete, which the append-only rule allows. Updates are rejected by the model and, on PostgreSQL, by a trigger, so a snapshot cannot be edited in place.
-
-There is no separate purge job in this release. Do not copy the current submission onto older decisions to fill gaps. If a future retention window is required, replace that design explicitly: delete or redact snapshot rows by instance age without rewriting `workflow_events` or completed task decisions.
-
-## Production access
-
-- Keep `APP_DEBUG` false so a database error page does not render bound query parameters.
-- The runtime database role should not be granted `UPDATE` on `workflow_submission_snapshots`. `DELETE` is needed only so instance and organization cascades can remove rows. The application must not issue `DELETE` against the snapshot table itself.
-- Restricted runtime credentials are still an open release item. Until `flowmv_app` from `docs/database-access.md` is in use, the elevated connection can update or delete rows directly. Treat that as unresolved.
+Use APP_DEBUG=false, restrict database and backup access, encrypt transport/backups, and exclude sensitive submissions from logs. Local MessageSending mail previews are development artifacts and can contain live verification/invitation links; keep storage private and include those previews, Mailpit databases, queues, exports, session rows and backups in the eventual retention policy. No files or rows are purged by this phase.

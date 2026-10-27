@@ -85,6 +85,10 @@ export type WorkflowInstance = {
 
 export type WorkflowTask = {
   uuid: string;
+  can_reassign?: boolean;
+  can_decide?: boolean;
+  can_revise?: boolean;
+  can_complete?: boolean;
   task_type: TaskType;
   status: TaskStatus;
   decision: TaskDecision | null;
@@ -127,7 +131,7 @@ export function hasBlockingFileField(definition: FormDefinition | null | undefin
 }
 
 export function buildSubmissionSchema(definition: FormDefinition) {
-  const shape: Record<string, z.ZodType<string | number | boolean | null>> = {};
+  const shape: Record<string, z.ZodType<string | number | boolean | null, string | number | boolean | null>> = {};
 
   for (const field of definition.fields) {
     if (field.type === "file") {
@@ -452,7 +456,7 @@ function query(params: Record<string, string | number | undefined>): string {
   return search.toString();
 }
 
-function fieldSchema(field: FormField): z.ZodType<string | number | boolean | null> {
+function fieldSchema(field: FormField): z.ZodType<string | number | boolean | null, string | number | boolean | null> {
   if (field.type === "checkbox") {
     return z.boolean().superRefine((value, context) => {
       if (field.required && value !== true) {

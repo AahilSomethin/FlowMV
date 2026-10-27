@@ -215,6 +215,8 @@ class Phase7AutomationNodesTest extends TestCase
         $task = $started->json('data.tasks.0.uuid');
 
         $this->signIn($manager);
+        $this->getJson("/api/v1/organizations/{$organization->uuid}/tasks/{$task}")
+            ->assertOk()->assertJsonPath('data.can_complete', true)->assertJsonPath('data.can_reassign', false);
         $this->postJson(
             "/api/v1/organizations/{$organization->uuid}/tasks/{$task}/reassign",
             ['assignee_user_id' => $other->id],
@@ -222,6 +224,8 @@ class Phase7AutomationNodesTest extends TestCase
         )->assertForbidden();
 
         $this->signIn($this->admin($organization));
+        $this->getJson("/api/v1/organizations/{$organization->uuid}/tasks/{$task}")
+            ->assertOk()->assertJsonPath('data.can_complete', false)->assertJsonPath('data.can_reassign', true);
         $this->postJson(
             "/api/v1/organizations/{$organization->uuid}/tasks/{$task}/reassign",
             ['assignee_user_id' => $other->id],

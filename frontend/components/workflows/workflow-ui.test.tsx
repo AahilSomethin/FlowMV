@@ -116,6 +116,22 @@ describe("workflow screens", () => {
     confirm.mockRestore();
   });
 
+  it("cancels supported browser history traversal when an unsaved draft is kept", () => {
+    const navigation = new EventTarget();
+    const previous = Object.getOwnPropertyDescriptor(window, "navigation");
+    Object.defineProperty(window, "navigation", { configurable: true, value: navigation });
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const view = render(<UnsavedChangesGuard dirty />);
+    const event = new Event("navigate", { cancelable: true });
+    Object.defineProperty(event, "navigationType", { value: "traverse" });
+    expect(navigation.dispatchEvent(event)).toBe(false);
+    expect(confirm).toHaveBeenCalledOnce();
+    view.unmount();
+    confirm.mockRestore();
+    if (previous) Object.defineProperty(window, "navigation", previous);
+    else Reflect.deleteProperty(window, "navigation");
+  });
+
   it("reloads workflows when the organization changes", async () => {
     const view = render(<WorkflowListScreen />);
 

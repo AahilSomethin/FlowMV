@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.FLOWMV_DIST_DIR ?? ".next",
   async headers() {
     return [
       {
@@ -24,6 +25,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     agentFeedback: true,
+    ...(process.env.FLOWMV_BUILD_SINGLE_WORKER === "1" ? { cpus: 1 } : {}),
   },
   cacheComponents: true,
   partialPrefetching: true,

@@ -17,6 +17,16 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
       if (!window.confirm("You have unsaved workflow changes. Leave without saving?")) event.preventDefault();
     }
 
+    function onHistoryNavigate(event: Event) {
+      const navigation = event as Event & { navigationType?: string };
+      if (navigation.navigationType === "traverse" && event.cancelable) {
+        onNavigate(event);
+      }
+    }
+
+    const navigation = (window as Window & { navigation?: EventTarget }).navigation;
+    navigation?.addEventListener("navigate", onHistoryNavigate);
+
     function onClick(event: MouseEvent) {
       const target = event.target instanceof Element ? event.target : null;
       const anchor = target?.closest("a");
@@ -42,6 +52,7 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
     document.addEventListener("click", onClick, true);
 
     return () => {
+      navigation?.removeEventListener("navigate", onHistoryNavigate);
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("flowmv:before-navigate", onNavigate);
       document.removeEventListener("click", onClick, true);

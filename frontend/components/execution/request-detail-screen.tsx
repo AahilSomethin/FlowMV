@@ -192,6 +192,7 @@ export function RequestDetailScreen() {
                       {task.task_type === "approval" ? "Approval" : task.task_type === "assignment" ? "Assignment" : "Revision"} ·{" "}
                       {task.node_label ?? "Workflow step"}
                     </span>
+                    {role === "admin" && task.status === "open" && task.task_type === "assignment" ? <Link className="underline underline-offset-4" href={`/tasks/${task.uuid}`}>Manage assignment</Link> : null}
                     <span className="text-muted-foreground">
                       {task.status === "open"
                         ? "Open"

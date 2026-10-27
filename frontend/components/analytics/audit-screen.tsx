@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ScrollText } from "lucide-react";
+import { WorkflowFilter } from "@/components/analytics/workflow-filter";
 import { AnalyticsNav, ScopeBanner } from "@/components/analytics/analytics-frame";
 import { ListPager } from "@/components/execution/list-pager";
 import { EmptyState } from "@/components/patterns/empty-state";
@@ -16,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { downloadExport, getAudit, utcDay, type AuditPage } from "@/lib/analytics";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { eventLabel, formatWhen, listPublishedWorkflows } from "@/lib/execution";
+import { eventLabel, formatWhen } from "@/lib/execution";
 
 const eventTypes = [
   "instance_started",
@@ -50,7 +51,6 @@ export function AuditScreen() {
   const [actor, setActor] = useState("all");
   const [instance, setInstance] = useState("");
   const [page, setPage] = useState(1);
-  const [workflows, setWorkflows] = useState<Array<{ uuid: string; name: string }>>([]);
   const [actors, setActors] = useState<Array<{ uuid: string; name: string }>>([]);
   const [report, setReport] = useState<AuditPage | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
@@ -65,17 +65,6 @@ export function AuditScreen() {
     }
 
     let active = true;
-    void listPublishedWorkflows(organizationId, "", 1)
-      .then((result) => {
-        if (active) {
-          setWorkflows(result.items.filter((item) => item.name));
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setWorkflows([]);
-        }
-      });
     void api<Array<{ uuid: string; name: string }>>(`/api/v1/organizations/${organizationId}/members`)
       .then((result) => {
         if (active) {
@@ -174,17 +163,7 @@ export function AuditScreen() {
       <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap">
         <Input type="date" aria-label="From date" value={from} className="h-10 w-full sm:w-44" onChange={(event) => { setPage(1); setFrom(event.target.value); }} />
         <Input type="date" aria-label="To date" value={to} className="h-10 w-full sm:w-44" onChange={(event) => { setPage(1); setTo(event.target.value); }} />
-        <Select value={workflow} onValueChange={(value) => { setPage(1); setWorkflow(value); }}>
-          <SelectTrigger className="h-10 w-full sm:w-56" aria-label="Filter by workflow">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All workflows</SelectItem>
-            {workflows.map((item) => (
-              <SelectItem key={item.uuid} value={item.uuid}>{item.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <WorkflowFilter key={organizationId} organizationId={organizationId} value={workflow} onChange={(value) => { setPage(1); setWorkflow(value); }} />
         <Select value={eventType} onValueChange={(value) => { setPage(1); setEventType(value); }}>
           <SelectTrigger className="h-10 w-full sm:w-56" aria-label="Filter by event type">
             <SelectValue />

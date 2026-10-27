@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { DecisionRecord } from "@/components/analytics/decision-record";
+import { ReassignAssignment } from "@/components/execution/reassign-assignment";
 import { DynamicForm, ReadOnlyFields } from "@/components/execution/dynamic-form";
 import { ConfirmDecisionDialog } from "@/components/execution/confirm-decision-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -41,9 +42,9 @@ export function TaskDetail({
   const requestName = instance?.workflow?.name ?? "this request";
   const stepLabel = task.node_label ?? instance?.current_node_label ?? "current";
   const actionable = task.status === "open" && conflict === null;
-  const approval = actionable && task.task_type === "approval";
-  const revision = actionable && task.task_type === "revision";
-  const assignment = actionable && task.task_type === "assignment";
+  const approval = actionable && task.task_type === "approval" && task.can_decide !== false;
+  const revision = actionable && task.task_type === "revision" && task.can_revise !== false;
+  const assignment = actionable && task.task_type === "assignment" && task.can_complete !== false;
 
   async function decide(decision: Extract<TaskDecision, "approved" | "rejected">) {
     const path = `/api/v1/organizations/${organizationId}/tasks/${task.uuid}/decisions`;
@@ -65,6 +66,7 @@ export function TaskDetail({
       }
 
       setBanner(networkOrMessage(error));
+      setAction(null);
     } finally {
       setPending(null);
     }
@@ -125,6 +127,7 @@ export function TaskDetail({
 
   return (
     <div className="flex flex-col gap-5">
+      {task.can_reassign ? <ReassignAssignment organizationId={organizationId} taskId={task.uuid} onUpdated={onUpdated} /> : null}
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-base font-medium">{requestName}</h2>

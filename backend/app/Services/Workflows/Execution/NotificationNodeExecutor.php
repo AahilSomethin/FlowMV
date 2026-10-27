@@ -231,6 +231,7 @@ class NotificationNodeExecutor
             'body' => $this->render((string) ($data['body'] ?? ''), $tokens),
             'workflow_uuid' => (string) ($instance->workflow?->uuid ?? ''),
             'instance_uuid' => $instance->uuid,
+            'organization_uuid' => (string) ($instance->organization?->uuid ?? ''),
             'node_id' => $nodeId,
             'version_number' => $version->version_number,
             'provider_message_id' => (string) Str::uuid(),

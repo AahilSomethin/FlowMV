@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { WORKSPACE_NAV } from "@/lib/navigation";
 
-const SESSION_COOKIE = "flowmv-session";
+const SESSION_COOKIE = process.env.FLOWMV_SESSION_COOKIE ?? "flowmv-session";
 
 const PROTECTED_PATHS = ["/onboarding", ...WORKSPACE_NAV.map((item) => item.href)];
 

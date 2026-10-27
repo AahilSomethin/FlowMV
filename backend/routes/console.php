@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('workflow:resume-due-delays')->everyMinute();
+Schedule::command('workflow:recover-notifications')->everyMinute();

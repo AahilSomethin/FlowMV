@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalyticsScreen } from "@/components/analytics/analytics-screen";
 import { AuditScreen } from "@/components/analytics/audit-screen";
 import { DecisionRecord } from "@/components/analytics/decision-record";
+import { WorkflowFilter } from "@/components/analytics/workflow-filter";
 import type { AnalyticsReport } from "@/lib/analytics";
 
 const auth = vi.hoisted(() => ({ org: "org-a" }));
@@ -151,6 +152,24 @@ describe("analytics screens", () => {
     expect(screen.getAllByText("Not enough completed requests").length).toBeGreaterThan(0);
     expect(screen.getByTestId("volume-chart")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alpha" })).toHaveAttribute("href", "/requests?workflow=workflow-1");
+    expect(api.mock.calls.filter(([url]) => String(url).includes("/workflows"))).toHaveLength(0);
+  });
+
+  it("loads workflow choices on demand and selects a workflow beyond page one", async () => {
+    api.mockImplementation((url: string) => Promise.resolve({
+      items: [{ uuid: String(url).includes("page=2") ? "older" : "recent", name: String(url).includes("page=2") ? "Older workflow" : "Recent workflow" }],
+      current_page: String(url).includes("page=2") ? 2 : 1,
+      last_page: 2,
+    }));
+    const change = vi.fn();
+    render(<WorkflowFilter organizationId="org-a" value="all" onChange={change} />);
+    expect(api).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Filter by workflow" }));
+    await screen.findByRole("button", { name: "Recent workflow" });
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Older workflow" }));
+    expect(change).toHaveBeenCalledWith("older");
+    expect(api).toHaveBeenLastCalledWith(expect.stringContaining("page=2"));
   });
 
   it("shows an empty state without a chart when nothing started", async () => {
