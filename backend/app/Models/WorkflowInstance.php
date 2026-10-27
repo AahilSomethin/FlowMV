@@ -22,6 +22,7 @@ use RuntimeException;
     'submitted_data',
     'started_at',
     'completed_at',
+    'resume_at',
 ])]
 class WorkflowInstance extends Model
 {
@@ -53,6 +54,7 @@ class WorkflowInstance extends Model
             'submitted_data' => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'resume_at' => 'datetime',
         ];
     }
 

@@ -168,6 +168,8 @@ class AnalyticsTest extends TestCase
         $after = $this->capture(fn () => $this->getJson($this->analytics($organization).'?from=2026-10-01&to=2026-10-31')->assertOk());
 
         $this->assertSame(count($before), count($after));
+        // Phase 7 reuses statusCounts when status filter is null: measured 20 → 19 SQL.
+        $this->assertSame(19, count($after));
         $joined = strtolower(implode("\n", $after));
         $this->assertStringContainsString('row_number', $joined);
         $this->assertStringContainsString('group by', $joined);

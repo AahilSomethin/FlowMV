@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/patterns/page-header";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
-import { formatWhen, listTasks, type TaskStatus, type WorkflowTask } from "@/lib/execution";
+import { formatWhen, listTasks, taskTypeLabel, type TaskStatus, type WorkflowTask } from "@/lib/execution";
 
 export function TaskInboxScreen() {
   const { user } = useAuth();
@@ -173,7 +173,7 @@ function TaskSummary({ task, name }: { task: WorkflowTask; name: string }) {
     <>
       <span className="font-medium">{name}</span>
       <span className="text-sm text-muted-foreground">
-        {task.task_type === "approval" ? "Approval" : "Revision"} · {task.node_label ?? "Current step"} ·{" "}
+        {taskTypeLabel(task.task_type)} · {task.node_label ?? "Current step"} ·{" "}
         {formatWhen(task.assigned_at)}
       </span>
     </>

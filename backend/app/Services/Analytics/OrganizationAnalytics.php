@@ -47,7 +47,10 @@ class OrganizationAnalytics
         $workflowId = $this->workflowId($organization, $workflowUuid);
         $role = $this->roles->role($user, $organization->id);
         $distribution = $this->statusCounts($user, $organization, $from, $to, $workflowId, $status);
-        $rates = $this->statusCounts($user, $organization, $from, $to, $workflowId, null);
+        // When no status filter is applied, distribution and rate cohorts are identical.
+        $rates = $status === null
+            ? $distribution
+            : $this->statusCounts($user, $organization, $from, $to, $workflowId, null);
         $completed = (int) ($rates[WorkflowInstanceStatus::Completed->value] ?? 0);
         $rejected = (int) ($rates[WorkflowInstanceStatus::Rejected->value] ?? 0);
         $terminal = $completed + $rejected;
@@ -324,7 +327,7 @@ class OrganizationAnalytics
     ): array {
         $rows = $this->instances($user, $organization, $from, $to, $workflowId, $status)
             ->join('workflows', 'workflows.id', '=', 'workflow_instances.workflow_id')
-            ->selectRaw("workflows.id as workflow_key, workflows.uuid as workflow_uuid, workflows.name as workflow_name, count(*) as started, sum(case when workflow_instances.status = 'completed' then 1 else 0 end) as completed, sum(case when workflow_instances.status = 'rejected' then 1 else 0 end) as rejected, sum(case when workflow_instances.status in ('running', 'awaiting_approval', 'awaiting_revision') then 1 else 0 end) as in_progress, sum(case when workflow_instances.status = 'failed' then 1 else 0 end) as failed")
+            ->selectRaw("workflows.id as workflow_key, workflows.uuid as workflow_uuid, workflows.name as workflow_name, count(*) as started, sum(case when workflow_instances.status = 'completed' then 1 else 0 end) as completed, sum(case when workflow_instances.status = 'rejected' then 1 else 0 end) as rejected, sum(case when workflow_instances.status in ('running', 'awaiting_approval', 'awaiting_revision', 'awaiting_assignment', 'awaiting_delay') then 1 else 0 end) as in_progress, sum(case when workflow_instances.status = 'failed' then 1 else 0 end) as failed")
             ->groupBy('workflows.id', 'workflows.uuid', 'workflows.name')
             ->orderBy('workflows.name')
             ->limit(self::MAX_GROUPS + 1)

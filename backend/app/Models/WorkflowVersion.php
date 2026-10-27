@@ -23,6 +23,7 @@ use Illuminate\Support\Str;
     'graph_definition',
     'form_definition',
     'content_hash',
+    'node_registry_version',
     'published_by',
     'published_at',
 ])]
@@ -56,6 +57,7 @@ class WorkflowVersion extends Model
     {
         return [
             'version_number' => 'integer',
+            'node_registry_version' => 'integer',
             'graph_definition' => 'array',
             'form_definition' => 'array',
             'published_at' => 'datetime',

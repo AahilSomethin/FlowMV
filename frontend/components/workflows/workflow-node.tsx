@@ -36,7 +36,19 @@ export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
       {kind === "revision" ? (
         <p className="text-xs text-muted-foreground">{data.max_returns ?? 0} attempts, then rejected</p>
       ) : null}
-      <Outcome handle="out" label="Next" hidden={kind !== "start"} position={Position.Bottom} />
+      {kind === "notification" ? (
+        <p className="truncate text-xs text-muted-foreground">{formatChannels(data.channels)}</p>
+      ) : null}
+      {kind === "assignment" ? (
+        <p className="truncate text-xs text-muted-foreground">{formatAssignment(data)}</p>
+      ) : null}
+      {kind === "delay" ? <p className="truncate text-xs text-muted-foreground">{formatDelay(data)}</p> : null}
+      <Outcome
+        handle="out"
+        label="Next"
+        hidden={!["start", "notification", "assignment", "delay"].includes(kind)}
+        position={Position.Bottom}
+      />
       <Outcome handle="approved" label="Approved" hidden={kind !== "approval"} position={Position.Right} />
       <Outcome handle="rejected" label="Rejected" hidden={kind !== "approval"} position={Position.Left} />
       <Outcome handle="true" label="True" hidden={kind !== "condition"} position={Position.Right} />
@@ -84,4 +96,59 @@ export const workflowNodeTypes = {
   condition: WorkflowNode,
   revision: WorkflowNode,
   end: WorkflowNode,
+  notification: WorkflowNode,
+  assignment: WorkflowNode,
+  delay: WorkflowNode,
 };
+
+function formatChannels(channels: WorkflowNodeData["channels"]): string {
+  if (!channels?.length) {
+    return "No channel selected";
+  }
+
+  return channels.map((channel) => (channel === "in_app" ? "In-app" : "Email")).join(", ");
+}
+
+function formatAssignment(data: WorkflowNodeData): string {
+  const mode = data.assignee_mode ?? "role";
+
+  if (mode === "member") {
+    return data.assignee_user_id != null ? `Member #${data.assignee_user_id}` : "No member selected";
+  }
+
+  return data.assignee_roles?.join(", ") || "No role selected";
+}
+
+function formatDelay(data: WorkflowNodeData): string {
+  const mode = data.resume_mode ?? "duration";
+
+  if (mode === "until") {
+    return data.resume_at ? `Until ${data.resume_at}` : "No resume time";
+  }
+
+  const seconds = data.duration_seconds;
+
+  if (seconds == null) {
+    return "No duration";
+  }
+
+  if (seconds % 86400 === 0) {
+    const days = seconds / 86400;
+
+    return `${days} day${days === 1 ? "" : "s"}`;
+  }
+
+  if (seconds % 3600 === 0) {
+    const hours = seconds / 3600;
+
+    return `${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+
+  if (seconds % 60 === 0) {
+    const minutes = seconds / 60;
+
+    return `${minutes} min`;
+  }
+
+  return `${seconds}s`;
+}

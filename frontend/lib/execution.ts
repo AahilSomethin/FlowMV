@@ -6,6 +6,8 @@ export type InstanceStatus =
   | "running"
   | "awaiting_approval"
   | "awaiting_revision"
+  | "awaiting_assignment"
+  | "awaiting_delay"
   | "completed"
   | "rejected"
   | "failed";
@@ -16,9 +18,9 @@ export type FailureCode =
   | "unknown_operator"
   | "corrupt_state";
 
-export type TaskType = "approval" | "revision";
+export type TaskType = "approval" | "revision" | "assignment";
 export type TaskStatus = "open" | "completed";
-export type TaskDecision = "approved" | "rejected";
+export type TaskDecision = "approved" | "rejected" | "completed";
 
 export type WorkflowRef = {
   uuid: string;
@@ -215,6 +217,10 @@ export function instanceStatusLabel(status: InstanceStatus): string {
       return "Awaiting approval";
     case "awaiting_revision":
       return "Needs revision";
+    case "awaiting_assignment":
+      return "Awaiting assignment";
+    case "awaiting_delay":
+      return "Delayed";
     case "completed":
       return "Completed";
     case "rejected":
@@ -229,7 +235,13 @@ export function instanceStatusTone(status: InstanceStatus): "neutral" | "attenti
     return "danger";
   }
 
-  if (status === "awaiting_approval" || status === "awaiting_revision" || status === "running") {
+  if (
+    status === "awaiting_approval" ||
+    status === "awaiting_revision" ||
+    status === "awaiting_assignment" ||
+    status === "awaiting_delay" ||
+    status === "running"
+  ) {
     return "attention";
   }
 
@@ -362,7 +374,7 @@ export function getTask(organizationId: string, taskId: string): Promise<Workflo
 export function decideTask(
   organizationId: string,
   taskId: string,
-  decision: TaskDecision,
+  decision: Extract<TaskDecision, "approved" | "rejected">,
   idempotencyKey: string,
 ): Promise<WorkflowInstance> {
   const body = { decision };
@@ -372,6 +384,26 @@ export function decideTask(
     body: stableJson(body),
     idempotencyKey,
   });
+}
+
+export function completeTask(organizationId: string, taskId: string, idempotencyKey: string): Promise<WorkflowInstance> {
+  return api<WorkflowInstance>(`/api/v1/organizations/${organizationId}/tasks/${taskId}/complete`, {
+    method: "POST",
+    body: stableJson({}),
+    idempotencyKey,
+  });
+}
+
+export function taskTypeLabel(taskType: TaskType): string {
+  if (taskType === "approval") {
+    return "Approval";
+  }
+
+  if (taskType === "revision") {
+    return "Revision";
+  }
+
+  return "Assignment";
 }
 
 export function reviseTask(

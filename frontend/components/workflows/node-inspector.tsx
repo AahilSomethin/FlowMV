@@ -1,27 +1,68 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { AssigneeRole, ConditionOperator, FormField, WorkflowNode, WorkflowNodeData } from "@/lib/workflows/types";
+import { api } from "@/lib/api";
+import type { Member } from "@/lib/organizations";
+import type {
+  AssigneeRole,
+  ConditionOperator,
+  FormField,
+  NotificationChannel,
+  WorkflowNode,
+  WorkflowNodeData,
+} from "@/lib/workflows/types";
 import { OPERATORS, VALUELESS_OPERATORS } from "@/lib/workflows/types";
 
 const ROLES: AssigneeRole[] = ["admin", "manager", "employee"];
+const CHANNELS: NotificationChannel[] = ["in_app", "email"];
+
+type MemberOption = Member & { user_id?: number };
 
 export function NodeInspector({
   node,
   nodes,
   fields,
+  organizationId,
   onChange,
   onRevisionTarget,
 }: {
   node: WorkflowNode | null;
   nodes: WorkflowNode[];
   fields: FormField[];
+  organizationId?: string | null;
   onChange: (patch: Partial<WorkflowNodeData>) => void;
   onRevisionTarget: (approvalId: string) => void;
 }) {
+  const [members, setMembers] = useState<MemberOption[]>([]);
+
+  useEffect(() => {
+    if (!organizationId || node?.type !== "assignment") {
+      setMembers([]);
+      return;
+    }
+
+    let active = true;
+
+    void api<MemberOption[]>(`/api/v1/organizations/${organizationId}/members`)
+      .then((result) => {
+        if (active) {
+          setMembers(result);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setMembers([]);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [organizationId, node?.type]);
   if (!node) {
     return <p className="text-sm text-muted-foreground">Select a node to edit its label, description, and outcome settings.</p>;
   }
@@ -122,8 +163,346 @@ export function NodeInspector({
           </Select>
         </div>
       ) : null}
+      {node.type === "notification" ? (
+        <NotificationFields node={node} fields={fields} onChange={onChange} />
+      ) : null}
+      {node.type === "assignment" ? (
+        <AssignmentFields node={node} members={members} onChange={onChange} />
+      ) : null}
+      {node.type === "delay" ? <DelayFields node={node} onChange={onChange} /> : null}
     </div>
   );
+}
+
+function NotificationFields({
+  node,
+  fields,
+  onChange,
+}: {
+  node: WorkflowNode;
+  fields: FormField[];
+  onChange: (patch: Partial<WorkflowNodeData>) => void;
+}) {
+  const templateFields = fields.filter((field) => field.type !== "file");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Channels</legend>
+        {CHANNELS.map((channel) => {
+          const checked = node.data.channels?.includes(channel) ?? false;
+
+          return (
+            <label key={channel} className="flex items-center gap-2 text-sm capitalize">
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 rounded border border-input accent-current"
+                checked={checked}
+                onChange={(event) => {
+                  const current = new Set(node.data.channels ?? []);
+
+                  if (event.target.checked) {
+                    current.add(channel);
+                  } else {
+                    current.delete(channel);
+                  }
+
+                  onChange({ channels: CHANNELS.filter((item) => current.has(item)) });
+                }}
+              />
+              {channel === "in_app" ? "In-app" : "Email"}
+            </label>
+          );
+        })}
+      </fieldset>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Recipient roles</legend>
+        {ROLES.map((role) => {
+          const checked = node.data.recipient_roles?.includes(role) ?? false;
+
+          return (
+            <label key={role} className="flex items-center gap-2 text-sm capitalize">
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 rounded border border-input accent-current"
+                checked={checked}
+                onChange={(event) => {
+                  const current = new Set(node.data.recipient_roles ?? []);
+
+                  if (event.target.checked) {
+                    current.add(role);
+                  } else {
+                    current.delete(role);
+                  }
+
+                  onChange({ recipient_roles: ROLES.filter((item) => current.has(item)) });
+                }}
+              />
+              {role}
+            </label>
+          );
+        })}
+      </fieldset>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="size-4 shrink-0 rounded border border-input accent-current"
+          checked={node.data.include_submitter ?? false}
+          onChange={(event) => onChange({ include_submitter: event.target.checked })}
+        />
+        Include submitter
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="size-4 shrink-0 rounded border border-input accent-current"
+          checked={node.data.include_task_participants ?? false}
+          onChange={(event) => onChange({ include_task_participants: event.target.checked })}
+        />
+        Include task participants
+      </label>
+      {templateFields.length > 0 ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium">Fields in message</legend>
+          {templateFields.map((field) => {
+            const checked = node.data.allowed_field_ids?.includes(field.id) ?? false;
+
+            return (
+              <label key={field.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4 shrink-0 rounded border border-input accent-current"
+                  checked={checked}
+                  onChange={(event) => {
+                    const current = new Set(node.data.allowed_field_ids ?? []);
+
+                    if (event.target.checked) {
+                      current.add(field.id);
+                    } else {
+                      current.delete(field.id);
+                    }
+
+                    onChange({ allowed_field_ids: [...current] });
+                  }}
+                />
+                {field.label || field.id}
+              </label>
+            );
+          })}
+        </fieldset>
+      ) : null}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="notification-subject">Subject</Label>
+        <Input
+          id="notification-subject"
+          value={node.data.subject ?? ""}
+          maxLength={160}
+          onChange={(event) => onChange({ subject: event.target.value })}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="notification-body">Body</Label>
+        <Textarea
+          id="notification-body"
+          value={node.data.body ?? ""}
+          maxLength={4000}
+          onChange={(event) => onChange({ body: event.target.value })}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AssignmentFields({
+  node,
+  members,
+  onChange,
+}: {
+  node: WorkflowNode;
+  members: MemberOption[];
+  onChange: (patch: Partial<WorkflowNodeData>) => void;
+}) {
+  const mode = node.data.assignee_mode ?? "role";
+  const memberOptions = members.filter((member): member is MemberOption & { user_id: number } => typeof member.user_id === "number");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <Label>Assignee</Label>
+        <Select value={mode} onValueChange={(value) => onChange({ assignee_mode: value as "role" | "member" })}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="role">Role</SelectItem>
+            <SelectItem value="member">Member</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {mode === "role" ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium">Assignable roles</legend>
+          {ROLES.map((role) => {
+            const checked = node.data.assignee_roles?.includes(role) ?? false;
+
+            return (
+              <label key={role} className="flex items-center gap-2 text-sm capitalize">
+                <input
+                  type="checkbox"
+                  className="size-4 shrink-0 rounded border border-input accent-current"
+                  checked={checked}
+                  onChange={(event) => {
+                    const current = new Set(node.data.assignee_roles ?? []);
+
+                    if (event.target.checked) {
+                      current.add(role);
+                    } else {
+                      current.delete(role);
+                    }
+
+                    onChange({ assignee_roles: ROLES.filter((item) => current.has(item)) });
+                  }}
+                />
+                {role}
+              </label>
+            );
+          })}
+        </fieldset>
+      ) : memberOptions.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <Label>Organization member</Label>
+          <Select
+            value={node.data.assignee_user_id != null ? String(node.data.assignee_user_id) : ""}
+            onValueChange={(value) => onChange({ assignee_user_id: value === "" ? null : Number(value) })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Choose a member" />
+            </SelectTrigger>
+            <SelectContent>
+              {memberOptions.map((member) => (
+                <SelectItem key={member.uuid} value={String(member.user_id)}>
+                  {member.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="assignee-user-id">Member user ID</Label>
+          <Input
+            id="assignee-user-id"
+            type="number"
+            min={1}
+            value={node.data.assignee_user_id ?? ""}
+            onChange={(event) =>
+              onChange({ assignee_user_id: event.target.value === "" ? null : Number(event.target.value) })
+            }
+          />
+          <p className="text-xs leading-5 text-muted-foreground">Use the numeric user id for the selected member.</p>
+        </div>
+      )}
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="size-4 shrink-0 rounded border border-input accent-current"
+          checked={node.data.exclude_submitter ?? true}
+          onChange={(event) => onChange({ exclude_submitter: event.target.checked })}
+        />
+        Exclude submitter when possible
+      </label>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="assignment-instructions">Instructions</Label>
+        <Textarea
+          id="assignment-instructions"
+          value={node.data.instructions ?? ""}
+          maxLength={2000}
+          onChange={(event) => onChange({ instructions: event.target.value })}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DelayFields({
+  node,
+  onChange,
+}: {
+  node: WorkflowNode;
+  onChange: (patch: Partial<WorkflowNodeData>) => void;
+}) {
+  const mode = node.data.resume_mode ?? "duration";
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <Label>Resume</Label>
+        <Select value={mode} onValueChange={(value) => onChange({ resume_mode: value as "duration" | "until" })}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="duration">After a duration</SelectItem>
+            <SelectItem value="until">At a date and time</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {mode === "duration" ? (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="delay-seconds">Duration (seconds)</Label>
+          <Input
+            id="delay-seconds"
+            type="number"
+            min={1}
+            max={2_592_000}
+            value={node.data.duration_seconds ?? ""}
+            onChange={(event) => onChange({ duration_seconds: event.target.value === "" ? null : Number(event.target.value) })}
+          />
+          <p className="text-xs leading-5 text-muted-foreground">Between 1 second and 30 days.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="delay-until">Resume at</Label>
+          <Input
+            id="delay-until"
+            type="datetime-local"
+            value={isoToLocalInput(node.data.resume_at)}
+            onChange={(event) => onChange({ resume_at: localInputToIso(event.target.value) })}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function isoToLocalInput(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function localInputToIso(value: string): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
 }
 
 function ConditionFields({

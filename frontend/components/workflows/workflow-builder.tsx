@@ -248,6 +248,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
           node={selected}
           nodes={state.nodes}
           fields={state.fields}
+          organizationId={organizationId}
           onChange={(patch) => setState((current) => (current && selected ? updateNodeData(current, selected.id, patch) : current))}
           onRevisionTarget={(approvalId) => setState((current) => (current && selected ? setRevisionTarget(current, selected.id, approvalId) : current))}
         />

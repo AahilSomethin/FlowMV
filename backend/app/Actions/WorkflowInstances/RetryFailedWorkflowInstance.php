@@ -41,14 +41,22 @@ class RetryFailedWorkflowInstance
                 throw new AuthorizationException;
             }
 
-            if ($locked->status !== WorkflowInstanceStatus::Failed || $locked->failure_code !== WorkflowFailureCode::NoEligibleApprover) {
+            $code = $locked->failure_code;
+
+            if ($locked->status !== WorkflowInstanceStatus::Failed || $code === null || ! $code->recoverable()) {
                 throw new WorkflowConflictException('This workflow instance cannot be retried.');
             }
 
             $version = $this->versions->forInstance($locked);
             $node = PublishedGraph::fromVersion($version)->node($locked->current_node_id);
+            $expectedType = match ($code) {
+                WorkflowFailureCode::NoEligibleApprover => 'approval',
+                WorkflowFailureCode::NoEligibleAssignee => 'assignment',
+                WorkflowFailureCode::NoNotificationRecipients => 'notification',
+                default => null,
+            };
 
-            if ($node === null || ($node['type'] ?? null) !== 'approval') {
+            if ($node === null || ($node['type'] ?? null) !== $expectedType) {
                 throw new WorkflowConflictException('This workflow instance cannot be retried.');
             }
 
@@ -61,8 +69,13 @@ class RetryFailedWorkflowInstance
                 throw new WorkflowConflictException('This workflow instance is no longer consistent.');
             }
 
-            if ($locked->status !== WorkflowInstanceStatus::AwaitingApproval) {
-                throw new WorkflowConflictException('Nobody is eligible to approve this request yet.');
+            if ($locked->status === WorkflowInstanceStatus::Failed && $locked->failure_code === $code) {
+                throw new WorkflowConflictException(match ($code) {
+                    WorkflowFailureCode::NoEligibleApprover => 'Nobody is eligible to approve this request yet.',
+                    WorkflowFailureCode::NoEligibleAssignee => 'Nobody is eligible to complete this assignment yet.',
+                    WorkflowFailureCode::NoNotificationRecipients => 'No notification recipients are available yet.',
+                    default => 'This workflow instance cannot be retried.',
+                });
             }
 
             return ($this->loader)($locked);

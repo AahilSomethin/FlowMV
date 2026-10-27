@@ -5,6 +5,7 @@ namespace App\Services\Workflows;
 use App\Enums\OrganizationRole;
 use App\Enums\WorkflowEndResult;
 use App\Enums\WorkflowNodeType;
+use App\Services\Workflows\Nodes\NodeRegistry;
 
 class WorkflowDefinitionNormalizer
 {
@@ -20,10 +21,7 @@ class WorkflowDefinitionNormalizer
 
     public const MAX_BYTES = 200_000;
 
-    /**
-     * @var list<string>
-     */
-    private const NODE_TYPES = ['start', 'approval', 'condition', 'revision', 'end'];
+    public const MAX_DELAY_SECONDS = 2_592_000;
 
     /**
      * @var list<string>
@@ -46,18 +44,10 @@ class WorkflowDefinitionNormalizer
         'is_false',
     ];
 
-    /**
-     * @var array<string, list<string>>
-     */
-    private const SOURCE_HANDLES = [
-        'start' => ['out'],
-        'approval' => ['approved', 'rejected'],
-        'condition' => ['true', 'false'],
-        'revision' => ['return', 'exhausted'],
-        'end' => [],
-    ];
-
-    public function __construct(private readonly WorkflowDefinitionHasher $hasher) {}
+    public function __construct(
+        private readonly WorkflowDefinitionHasher $hasher,
+        private readonly NodeRegistry $registry,
+    ) {}
 
     /**
      * @param  mixed  $graph
@@ -183,8 +173,9 @@ class WorkflowDefinitionNormalizer
         }
 
         $type = $node['type'] ?? null;
+        $allowedTypes = $this->registry->typesFor(NodeRegistry::CURRENT);
 
-        if (! is_string($type) || ! in_array($type, self::NODE_TYPES, true)) {
+        if (! is_string($type) || ! in_array($type, $allowedTypes, true)) {
             $violations[] = $this->violation('invalid_node_type', 'Use a supported node type.', $id);
 
             return null;
@@ -309,6 +300,18 @@ class WorkflowDefinitionNormalizer
             }
         }
 
+        if ($type === WorkflowNodeType::Notification->value) {
+            $normalized = array_merge($normalized, $this->notificationData($data, $violations, $id));
+        }
+
+        if ($type === WorkflowNodeType::Assignment->value) {
+            $normalized = array_merge($normalized, $this->assignmentData($data, $violations, $id));
+        }
+
+        if ($type === WorkflowNodeType::Delay->value) {
+            $normalized = array_merge($normalized, $this->delayData($data, $violations, $id));
+        }
+
         return [
             'id' => $id,
             'type' => $type,
@@ -347,7 +350,7 @@ class WorkflowDefinitionNormalizer
             return null;
         }
 
-        $allowed = array_merge(...array_values(self::SOURCE_HANDLES));
+        $allowed = array_values(array_unique(array_merge(...array_values($this->registry->allSourceHandles(NodeRegistry::CURRENT)))));
 
         if (! is_string($sourceHandle) || ! in_array($sourceHandle, $allowed, true)) {
             $violations[] = $this->violation('invalid_handle', 'A connection uses an unsupported outcome.', null, $id);
@@ -792,6 +795,180 @@ class WorkflowDefinitionNormalizer
         }
 
         return $unique;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<array{code: string, message: string, node_id: ?string, edge_id: ?string, field_id: ?string}>  $violations
+     * @return array<string, mixed>
+     */
+    private function notificationData(array $data, array &$violations, string $nodeId): array
+    {
+        $channels = $data['channels'] ?? [];
+        $cleanChannels = [];
+
+        if (! is_array($channels) || ! array_is_list($channels)) {
+            $violations[] = $this->violation('notification_channels', 'Choose at least one notification channel.', $nodeId);
+        } else {
+            foreach ($channels as $channel) {
+                if (! is_string($channel) || ! in_array($channel, ['in_app', 'email'], true)) {
+                    $violations[] = $this->violation('notification_channels', 'Notification channels must be in_app or email.', $nodeId);
+                    continue;
+                }
+
+                $cleanChannels[$channel] = $channel;
+            }
+        }
+
+        $roles = $data['recipient_roles'] ?? [];
+        $cleanRoles = [];
+
+        if (! is_array($roles) || ! array_is_list($roles)) {
+            $violations[] = $this->violation('notification_recipients', 'Recipient roles must be a list.', $nodeId);
+        } else {
+            foreach ($roles as $role) {
+                if (! is_string($role) || OrganizationRole::tryFrom($role) === null) {
+                    $violations[] = $this->violation('notification_recipients', 'Recipient roles must be admin, manager, or employee.', $nodeId);
+                    continue;
+                }
+
+                $cleanRoles[$role] = $role;
+            }
+        }
+
+        $fieldIds = $data['allowed_field_ids'] ?? [];
+        $cleanFields = [];
+
+        if (! is_array($fieldIds) || ! array_is_list($fieldIds)) {
+            $violations[] = $this->violation('notification_template', 'Allowed field ids must be a list.', $nodeId);
+        } else {
+            foreach ($fieldIds as $fieldId) {
+                if (! is_string($fieldId) || $fieldId === '' || strlen($fieldId) > 64) {
+                    $violations[] = $this->violation('notification_template', 'Allowed field ids must be short strings.', $nodeId);
+                    continue;
+                }
+
+                $cleanFields[$fieldId] = $fieldId;
+            }
+        }
+
+        $subject = $this->text($data['subject'] ?? 'Workflow update', 160, false, $violations, 'unsafe_content', 'A notification subject contains unsupported characters.', $nodeId);
+        $body = $this->text($data['body'] ?? 'A workflow step needs your attention.', 4000, true, $violations, 'unsafe_content', 'A notification body contains unsupported characters.', $nodeId);
+
+        return [
+            'channels' => array_values($cleanChannels),
+            'recipient_roles' => array_values($cleanRoles),
+            'include_submitter' => (bool) ($data['include_submitter'] ?? true),
+            'include_task_participants' => (bool) ($data['include_task_participants'] ?? false),
+            'allowed_field_ids' => array_values($cleanFields),
+            'subject' => $subject ?? 'Workflow update',
+            'body' => $body ?? 'A workflow step needs your attention.',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<array{code: string, message: string, node_id: ?string, edge_id: ?string, field_id: ?string}>  $violations
+     * @return array<string, mixed>
+     */
+    private function assignmentData(array $data, array &$violations, string $nodeId): array
+    {
+        $mode = $data['assignee_mode'] ?? 'role';
+        $mode = is_string($mode) && in_array($mode, ['role', 'member'], true) ? $mode : 'role';
+
+        if (! is_string($data['assignee_mode'] ?? 'role') || ! in_array($data['assignee_mode'] ?? 'role', ['role', 'member'], true)) {
+            $violations[] = $this->violation('assignment_assignee', 'Assignments target a role or a member.', $nodeId);
+        }
+
+        $roles = $data['assignee_roles'] ?? [];
+        $cleanRoles = [];
+
+        if (! is_array($roles) || ! array_is_list($roles)) {
+            $violations[] = $this->violation('assignment_assignee', 'Assignee roles must be a list.', $nodeId);
+        } else {
+            foreach ($roles as $role) {
+                if (! is_string($role) || OrganizationRole::tryFrom($role) === null) {
+                    $violations[] = $this->violation('assignment_assignee', 'Assignee roles must be admin, manager, or employee.', $nodeId);
+                    continue;
+                }
+
+                $cleanRoles[$role] = $role;
+            }
+        }
+
+        $userId = $data['assignee_user_id'] ?? null;
+        $cleanUserId = null;
+
+        if ($userId !== null && $userId !== '') {
+            if (! is_int($userId) && ! (is_string($userId) && ctype_digit($userId))) {
+                $violations[] = $this->violation('assignment_assignee', 'A member assignee must be a user id.', $nodeId);
+            } else {
+                $cleanUserId = (int) $userId;
+            }
+        }
+
+        $instructions = $this->text($data['instructions'] ?? '', 2000, true, $violations, 'unsafe_content', 'Assignment instructions contain unsupported characters.', $nodeId);
+
+        return [
+            'assignee_mode' => $mode,
+            'assignee_roles' => array_values($cleanRoles),
+            'assignee_user_id' => $cleanUserId,
+            'exclude_submitter' => (bool) ($data['exclude_submitter'] ?? true),
+            'instructions' => $instructions ?? '',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<array{code: string, message: string, node_id: ?string, edge_id: ?string, field_id: ?string}>  $violations
+     * @return array<string, mixed>
+     */
+    private function delayData(array $data, array &$violations, string $nodeId): array
+    {
+        $mode = $data['resume_mode'] ?? 'duration';
+        $mode = is_string($mode) && in_array($mode, ['duration', 'until'], true) ? $mode : 'duration';
+
+        if (! is_string($data['resume_mode'] ?? 'duration') || ! in_array($data['resume_mode'] ?? 'duration', ['duration', 'until'], true)) {
+            $violations[] = $this->violation('delay_config', 'A delay resumes after a duration or at a time.', $nodeId);
+        }
+
+        $seconds = $data['duration_seconds'] ?? null;
+        $cleanSeconds = null;
+
+        if ($seconds !== null && $seconds !== '') {
+            if (! is_int($seconds) && ! (is_string($seconds) && ctype_digit($seconds))) {
+                $violations[] = $this->violation('delay_config', 'Delay duration must be a whole number of seconds.', $nodeId);
+            } else {
+                $cleanSeconds = (int) $seconds;
+
+                if ($cleanSeconds < 1 || $cleanSeconds > self::MAX_DELAY_SECONDS) {
+                    $violations[] = $this->violation('delay_config', 'Delay duration must be between 1 second and 30 days.', $nodeId);
+                    $cleanSeconds = null;
+                }
+            }
+        }
+
+        $resumeAt = $data['resume_at'] ?? null;
+        $cleanResumeAt = null;
+
+        if ($resumeAt !== null && $resumeAt !== '') {
+            if (! is_string($resumeAt)) {
+                $violations[] = $this->violation('delay_config', 'A resume time must be an ISO-8601 timestamp.', $nodeId);
+            } else {
+                try {
+                    $parsed = \Illuminate\Support\Carbon::parse($resumeAt)->utc();
+                    $cleanResumeAt = $parsed->toIso8601String();
+                } catch (\Throwable) {
+                    $violations[] = $this->violation('delay_config', 'A resume time must be an ISO-8601 timestamp.', $nodeId);
+                }
+            }
+        }
+
+        return [
+            'resume_mode' => $mode,
+            'duration_seconds' => $cleanSeconds,
+            'resume_at' => $cleanResumeAt,
+        ];
     }
 
     /**

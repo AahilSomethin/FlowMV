@@ -97,6 +97,15 @@ class TaskEligibilityQuery
             })->orWhere(function (Builder $approval) use ($user, $role): void {
                 $approval->where('workflow_tasks.task_type', WorkflowTaskType::Approval->value);
                 $this->whereApprovalMatchesRole($approval, 'workflow_tasks', $user, $role->value);
+            })->orWhere(function (Builder $assignment) use ($user, $role): void {
+                $assignment->where('workflow_tasks.task_type', WorkflowTaskType::Assignment->value)
+                    ->where(function (Builder $who) use ($user, $role): void {
+                        $who->where('workflow_tasks.assigned_user_id', $user->id)
+                            ->orWhere(function (Builder $roleMatch) use ($user, $role): void {
+                                $roleMatch->whereNull('workflow_tasks.assigned_user_id');
+                                $this->whereApprovalMatchesRole($roleMatch, 'workflow_tasks', $user, $role->value);
+                            });
+                    });
             });
         });
     }

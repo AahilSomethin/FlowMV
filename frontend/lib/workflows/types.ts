@@ -1,6 +1,16 @@
 export type WorkflowStatus = "draft" | "published" | "archived";
 
-export type NodeType = "start" | "approval" | "condition" | "revision" | "end";
+export type NodeType =
+  | "start"
+  | "approval"
+  | "condition"
+  | "revision"
+  | "end"
+  | "notification"
+  | "assignment"
+  | "delay";
+
+export type NotificationChannel = "in_app" | "email";
 
 export type EndResult = "completed" | "rejected";
 
@@ -36,6 +46,20 @@ export type WorkflowNodeData = {
   max_returns?: number | null;
   return_to_node_id?: string | null;
   result?: EndResult | null;
+  channels?: NotificationChannel[];
+  recipient_roles?: AssigneeRole[];
+  include_submitter?: boolean;
+  include_task_participants?: boolean;
+  allowed_field_ids?: string[];
+  subject?: string;
+  body?: string;
+  assignee_mode?: "role" | "member";
+  assignee_user_id?: number | null;
+  exclude_submitter?: boolean;
+  instructions?: string;
+  resume_mode?: "duration" | "until";
+  duration_seconds?: number | null;
+  resume_at?: string | null;
 };
 
 export type WorkflowNode = {
@@ -139,6 +163,9 @@ export const SOURCE_HANDLES: Record<NodeType, string[]> = {
   condition: ["true", "false"],
   revision: ["return", "exhausted"],
   end: [],
+  notification: ["out"],
+  assignment: ["out"],
+  delay: ["out"],
 };
 
 export const OPERATORS: Record<FieldType, ConditionOperator[]> = {
@@ -173,5 +200,17 @@ export const NODE_COPY: Record<NodeType, { title: string; description: string }>
   end: {
     title: "End",
     description: "Ends the workflow as completed or rejected.",
+  },
+  notification: {
+    title: "Notification",
+    description: "Sends in-app or email updates to selected recipients, then continues.",
+  },
+  assignment: {
+    title: "Assignment",
+    description: "Assigns a task to a role or member. They must complete it before the workflow continues.",
+  },
+  delay: {
+    title: "Delay",
+    description: "Pauses the workflow for a duration or until a time, then continues automatically.",
   },
 };

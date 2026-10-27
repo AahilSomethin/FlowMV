@@ -2,37 +2,18 @@
 
 namespace App\Services\Workflows;
 
+use App\Services\Workflows\Nodes\NodeRegistry;
+
 /**
  * Publication rules for a workflow definition.
  *
- * Revision nodes describe a future submitter-correction loop. Phase 3 stores
- * and validates that loop. It does not create tasks or count attempts.
+ * Drafts and new publishes validate against the current registry (V2).
+ * Historical V1 snapshots are never revalidated under newer rules.
  *
- * When Phase 4 executes a published snapshot:
- * - An Approval rejection enters a Revision node.
- * - The original submitter receives a revision task.
- * - Resubmission follows the return edge to the configured Approval ancestor.
- * - Attempts are counted per workflow instance, up to max_returns.
- * - The next attempt after that maximum follows the exhausted edge.
- * - That exhausted path must end on an End node whose result is rejected.
- *
- * Returning to Start is not a supported correction path. The return target
- * has to be an Approval node that can reach this Revision node through the
- * forward graph (every edge except the revision return).
+ * Revision nodes describe a submitter-correction loop executed by Phase 4+.
  */
 class WorkflowDefinitionValidator
 {
-    /**
-     * @var array<string, list<string>>
-     */
-    private const SOURCE_HANDLES = [
-        'start' => ['out'],
-        'approval' => ['approved', 'rejected'],
-        'condition' => ['true', 'false'],
-        'revision' => ['return', 'exhausted'],
-        'end' => [],
-    ];
-
     /**
      * @var array<string, list<string>>
      */
@@ -51,7 +32,10 @@ class WorkflowDefinitionValidator
      */
     private const VALUELESS = ['is_blank', 'is_not_blank', 'is_true', 'is_false'];
 
-    public function __construct(private readonly WorkflowDefinitionHasher $hasher) {}
+    public function __construct(
+        private readonly WorkflowDefinitionHasher $hasher,
+        private readonly NodeRegistry $registry,
+    ) {}
 
     /**
      * @param  array{nodes: list<array<string, mixed>>, edges: list<array<string, mixed>>}  $graph
@@ -95,7 +79,9 @@ class WorkflowDefinitionValidator
                 continue;
             }
 
-            $allowed = self::SOURCE_HANDLES[$source['type']] ?? [];
+            $allowed = $this->registry->allows(NodeRegistry::CURRENT, $source['type'])
+                ? $this->registry->sourceHandles($source['type'])
+                : [];
 
             if (! in_array($edge['source_handle'], $allowed, true)) {
                 $violations[] = $this->violation('invalid_handle', 'This connection is not an outcome of its source node.', $source['id'], $edge['id']);
@@ -126,7 +112,7 @@ class WorkflowDefinitionValidator
                 continue;
             }
 
-            foreach (self::SOURCE_HANDLES[$node['type']] as $handle) {
+            foreach ($this->registry->sourceHandles($node['type']) as $handle) {
                 if (! isset($handleOwners[$node['id'].':'.$handle])) {
                     $violations[] = $this->violation(
                         $node['type'] === 'approval' ? 'approval_branch' : ($node['type'] === 'condition' ? 'condition_branch' : 'dangling_path'),
@@ -221,6 +207,66 @@ class WorkflowDefinitionValidator
 
         if ($node['type'] === 'revision' && ($data['max_returns'] ?? null) === null) {
             $violations[] = $this->violation('revision_bound', 'Set the maximum number of revision attempts, from 1 to 10.', $node['id']);
+        }
+
+        if ($node['type'] === 'notification') {
+            if (($data['channels'] ?? []) === []) {
+                $violations[] = $this->violation('notification_channels', 'Choose at least one notification channel.', $node['id']);
+            }
+
+            $hasRecipients = ($data['recipient_roles'] ?? []) !== []
+                || ($data['include_submitter'] ?? false) === true
+                || ($data['include_task_participants'] ?? false) === true;
+
+            if (! $hasRecipients) {
+                $violations[] = $this->violation('notification_recipients', 'Choose at least one recipient role or participant.', $node['id']);
+            }
+
+            $fieldIds = $data['allowed_field_ids'] ?? [];
+            $known = [];
+
+            foreach ($form['fields'] as $field) {
+                $known[$field['id']] = $field;
+            }
+
+            foreach ($fieldIds as $fieldId) {
+                if (! isset($known[$fieldId])) {
+                    $violations[] = $this->violation('unknown_field', 'This notification references a form field that does not exist.', $node['id'], null, $fieldId);
+                    continue;
+                }
+
+                if (($known[$fieldId]['type'] ?? null) === 'file') {
+                    $violations[] = $this->violation('notification_template', 'File fields cannot be included in notification templates.', $node['id'], null, $fieldId);
+                }
+            }
+
+            if (($data['subject'] ?? '') === '') {
+                $violations[] = $this->violation('incomplete_config', 'Give this notification a subject.', $node['id']);
+            }
+        }
+
+        if ($node['type'] === 'assignment') {
+            $mode = $data['assignee_mode'] ?? 'role';
+
+            if ($mode === 'role' && ($data['assignee_roles'] ?? []) === []) {
+                $violations[] = $this->violation('assignment_assignee', 'Choose at least one role that can complete this task.', $node['id']);
+            }
+
+            if ($mode === 'member' && ($data['assignee_user_id'] ?? null) === null) {
+                $violations[] = $this->violation('assignment_assignee', 'Choose an organization member for this assignment.', $node['id']);
+            }
+        }
+
+        if ($node['type'] === 'delay') {
+            $mode = $data['resume_mode'] ?? 'duration';
+
+            if ($mode === 'duration' && ($data['duration_seconds'] ?? null) === null) {
+                $violations[] = $this->violation('delay_config', 'Set a delay duration between 1 second and 30 days.', $node['id']);
+            }
+
+            if ($mode === 'until' && ($data['resume_at'] ?? null) === null) {
+                $violations[] = $this->violation('delay_config', 'Set a resume time for this delay.', $node['id']);
+            }
         }
     }
 

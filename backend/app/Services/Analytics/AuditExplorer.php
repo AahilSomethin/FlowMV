@@ -38,6 +38,18 @@ class AuditExplorer
         'result',
         'version_number',
         'workflow_version_uuid',
+        'recipient_count',
+        'channel_count',
+        'queued_count',
+        'outbox_uuid',
+        'channel',
+        'recipient_user_id',
+        'permanent',
+        'delay_uuid',
+        'resume_at',
+        'reason',
+        'previous_user_id',
+        'assignee_user_id',
     ];
 
     public function __construct(private readonly TaskEligibilityQuery $eligibility) {}

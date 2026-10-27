@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowVersion;
+use App\Services\Workflows\Nodes\NodeRegistry;
 use App\Services\Workflows\WorkflowDefinitionHasher;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -29,6 +30,7 @@ class WorkflowVersionFactory extends Factory
             'graph_definition' => $graph,
             'form_definition' => $form,
             'content_hash' => app(WorkflowDefinitionHasher::class)->hash($graph, $form),
+            'node_registry_version' => NodeRegistry::CURRENT,
             'published_by' => User::factory(),
             'published_at' => now(),
         ];

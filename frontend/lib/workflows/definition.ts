@@ -11,6 +11,8 @@ import type {
 } from "@/lib/workflows/types";
 import { OPERATORS, SOURCE_HANDLES, VALUELESS_OPERATORS } from "@/lib/workflows/types";
 
+const MAX_DELAY_SECONDS = 30 * 24 * 60 * 60;
+
 export function violation(
   code: string,
   message: string,
@@ -32,6 +34,9 @@ export function defaultNodeData(type: NodeType): WorkflowNodeData {
     condition: "Condition",
     revision: "Revision",
     end: "End",
+    notification: "Notification",
+    assignment: "Assignment",
+    delay: "Delay",
   };
   const base: WorkflowNodeData = { label: labels[type], description: "" };
 
@@ -49,6 +54,39 @@ export function defaultNodeData(type: NodeType): WorkflowNodeData {
 
   if (type === "end") {
     return { ...base, result: "completed" };
+  }
+
+  if (type === "notification") {
+    return {
+      ...base,
+      channels: ["in_app"],
+      recipient_roles: ["manager"],
+      include_submitter: true,
+      include_task_participants: false,
+      allowed_field_ids: [],
+      subject: "Workflow update",
+      body: "A workflow step needs your attention.",
+    };
+  }
+
+  if (type === "assignment") {
+    return {
+      ...base,
+      assignee_mode: "role",
+      assignee_roles: ["employee"],
+      assignee_user_id: null,
+      exclude_submitter: true,
+      instructions: "",
+    };
+  }
+
+  if (type === "delay") {
+    return {
+      ...base,
+      resume_mode: "duration",
+      duration_seconds: 3600,
+      resume_at: null,
+    };
   }
 
   return base;
@@ -123,6 +161,66 @@ export function validateDefinition(graph: GraphDefinition, form: FormDefinition)
 
     if (node.type === "revision" && (node.data.max_returns == null || node.data.max_returns < 1 || node.data.max_returns > 10)) {
       violations.push(violation("revision_bound", "Set the maximum number of revision attempts, from 1 to 10.", node.id));
+    }
+
+    if (node.type === "notification") {
+      if ((node.data.channels?.length ?? 0) === 0) {
+        violations.push(violation("notification_channels", "Choose at least one notification channel.", node.id));
+      }
+
+      const hasRecipients =
+        (node.data.recipient_roles?.length ?? 0) > 0 ||
+        node.data.include_submitter === true ||
+        node.data.include_task_participants === true;
+
+      if (!hasRecipients) {
+        violations.push(violation("notification_recipients", "Choose at least one recipient role or participant.", node.id));
+      }
+
+      for (const fieldId of node.data.allowed_field_ids ?? []) {
+        const field = fields.get(fieldId);
+
+        if (!field) {
+          violations.push(violation("unknown_field", "This notification references a form field that does not exist.", node.id, null, fieldId));
+          continue;
+        }
+
+        if (field.type === "file") {
+          violations.push(violation("notification_template", "File fields cannot be included in notification templates.", node.id, null, fieldId));
+        }
+      }
+
+      if (!(node.data.subject ?? "").trim()) {
+        violations.push(violation("incomplete_config", "Give this notification a subject.", node.id));
+      }
+    }
+
+    if (node.type === "assignment") {
+      const mode = node.data.assignee_mode ?? "role";
+
+      if (mode === "role" && (node.data.assignee_roles?.length ?? 0) === 0) {
+        violations.push(violation("assignment_assignee", "Choose at least one role that can complete this task.", node.id));
+      }
+
+      if (mode === "member" && (node.data.assignee_user_id ?? null) === null) {
+        violations.push(violation("assignment_assignee", "Choose an organization member for this assignment.", node.id));
+      }
+    }
+
+    if (node.type === "delay") {
+      const mode = node.data.resume_mode ?? "duration";
+
+      if (mode === "duration") {
+        const seconds = node.data.duration_seconds;
+
+        if (seconds == null || seconds < 1 || seconds > MAX_DELAY_SECONDS) {
+          violations.push(violation("delay_config", "Set a delay duration between 1 second and 30 days.", node.id));
+        }
+      }
+
+      if (mode === "until" && (node.data.resume_at ?? null) === null) {
+        violations.push(violation("delay_config", "Set a resume time for this delay.", node.id));
+      }
     }
   }
 
@@ -379,6 +477,10 @@ function missingHandle(type: NodeType, handle: string): string {
 
   if (type === "start") {
     return "Connect Start to the next step.";
+  }
+
+  if (type === "notification" || type === "assignment" || type === "delay") {
+    return "Connect this step to what happens next.";
   }
 
   return "Connect every outcome before publishing.";

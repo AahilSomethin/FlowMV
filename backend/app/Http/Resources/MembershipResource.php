@@ -18,6 +18,7 @@ class MembershipResource extends JsonResource
     {
         return [
             'uuid' => $this->uuid,
+            'user_id' => $this->user_id,
             'role' => $this->role->value,
             'name' => $this->user->name,
             'email' => $this->user->email,

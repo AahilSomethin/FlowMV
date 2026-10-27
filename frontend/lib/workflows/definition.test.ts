@@ -80,4 +80,33 @@ describe("workflow definition validation", () => {
 
     expect(codes).toContain("operator_mismatch");
   });
+
+  it("requires notification channels, recipients, and subject", () => {
+    const graph: GraphDefinition = {
+      nodes: [
+        node("start", "start", { label: "Start", description: "" }),
+        node("notify", "notification", {
+          label: "Notify",
+          description: "",
+          channels: [],
+          recipient_roles: [],
+          include_submitter: false,
+          include_task_participants: false,
+          subject: "",
+          body: "",
+        }),
+        node("done", "end", { label: "Done", description: "", result: "completed" }),
+      ],
+      edges: [
+        edge("e1", "start", "notify", "out"),
+        edge("e2", "notify", "done", "out"),
+      ],
+    };
+
+    const codes = validateDefinition(graph, { fields: [] }).map((item) => item.code);
+
+    expect(codes).toContain("notification_channels");
+    expect(codes).toContain("notification_recipients");
+    expect(codes).toContain("incomplete_config");
+  });
 });

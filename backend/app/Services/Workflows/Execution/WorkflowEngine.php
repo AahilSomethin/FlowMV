@@ -14,11 +14,16 @@ use App\Models\WorkflowInstance;
 use App\Models\WorkflowRevisionCounter;
 use App\Models\WorkflowTask;
 use App\Models\WorkflowVersion;
+use App\Services\Workflows\Nodes\NodeRegistry;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 /**
  * Interprets one pinned workflow version. Callers own the transaction and the
  * instance row lock. This class never reads the workflow's current version.
+ *
+ * V1 snapshots keep the original five-type semantics. V2 may include
+ * notification, assignment, and delay nodes. Historical graphs are never
+ * reinterpreted under newer node rules.
  */
 class WorkflowEngine
 {
@@ -29,6 +34,10 @@ class WorkflowEngine
         private readonly ApprovalEligibility $eligibility,
         private readonly WorkflowInstanceState $state,
         private readonly WorkflowEventWriter $events,
+        private readonly NodeRegistry $registry,
+        private readonly NotificationNodeExecutor $notifications,
+        private readonly AssignmentNodeExecutor $assignments,
+        private readonly DelayNodeExecutor $delays,
     ) {}
 
     public function run(WorkflowInstance $instance, WorkflowVersion $version, User $actor): void
@@ -49,6 +58,7 @@ class WorkflowEngine
     {
         $graph = $this->graph($instance, $version);
         $limit = max($graph->nodeCount(), 1);
+        $registryVersion = (int) ($version->node_registry_version ?? NodeRegistry::V1);
 
         for ($step = 0; $step < $limit; $step++) {
             $node = $graph->node($nodeId);
@@ -62,6 +72,12 @@ class WorkflowEngine
             $instance->current_node_id = $nodeId;
             $instance->save();
             $type = $node['type'];
+
+            if (! $this->registry->allows($registryVersion, $type)) {
+                $this->fail($instance, $actor, WorkflowFailureCode::InvalidGraph, $nodeId);
+
+                return;
+            }
 
             if ($type === 'start') {
                 $nodeId = $this->successor($graph, $instance, $actor, $nodeId, 'out');
@@ -99,6 +115,28 @@ class WorkflowEngine
                 continue;
             }
 
+            if ($type === 'notification') {
+                $nodeId = $this->notifications->execute($instance, $version, $actor, $node, $nodeId, $this, $graph);
+
+                if ($nodeId === null) {
+                    return;
+                }
+
+                continue;
+            }
+
+            if ($type === 'assignment') {
+                $this->assignments->execute($instance, $actor, $node, $nodeId, $this);
+
+                return;
+            }
+
+            if ($type === 'delay') {
+                $this->delays->execute($instance, $actor, $node, $nodeId, $this);
+
+                return;
+            }
+
             if ($type === 'end') {
                 $this->finish($instance, $actor, $node, $nodeId);
 
@@ -125,6 +163,19 @@ class WorkflowEngine
             'failure_code' => $code->value,
             'recoverable' => $code->recoverable(),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function openHumanTask(
+        WorkflowInstance $instance,
+        User $actor,
+        array $attributes,
+        WorkflowInstanceStatus $waiting,
+        ?array $revision = null,
+    ): void {
+        $this->openTask($instance, $actor, $attributes, $waiting, $revision);
     }
 
     private function graph(WorkflowInstance $instance, WorkflowVersion $version): PublishedGraph

@@ -6,4 +6,5 @@ enum WorkflowTaskDecision: string
 {
     case Approved = 'approved';
     case Rejected = 'rejected';
+    case Completed = 'completed';
 }

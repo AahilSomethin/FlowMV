@@ -9,11 +9,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import {
+  completeTask,
   decideTask,
   IdempotencyKeys,
   instanceStatusLabel,
   reviseTask,
   stableJson,
+  taskTypeLabel,
   toSubmissionData,
   type SubmissionValues,
   type TaskDecision,
@@ -31,8 +33,8 @@ export function TaskDetail({
   onUpdated: () => void;
 }) {
   const keys = useRef(new IdempotencyKeys());
-  const [pending, setPending] = useState<TaskDecision | "revision" | null>(null);
-  const [action, setAction] = useState<TaskDecision | null>(null);
+  const [pending, setPending] = useState<TaskDecision | "revision" | "complete" | null>(null);
+  const [action, setAction] = useState<Extract<TaskDecision, "approved" | "rejected"> | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const instance = task.instance;
@@ -41,8 +43,9 @@ export function TaskDetail({
   const actionable = task.status === "open" && conflict === null;
   const approval = actionable && task.task_type === "approval";
   const revision = actionable && task.task_type === "revision";
+  const assignment = actionable && task.task_type === "assignment";
 
-  async function decide(decision: TaskDecision) {
+  async function decide(decision: Extract<TaskDecision, "approved" | "rejected">) {
     const path = `/api/v1/organizations/${organizationId}/tasks/${task.uuid}/decisions`;
     const body = { decision };
     const idempotencyKey = keys.current.for(`POST ${path} ${stableJson(body)}`);
@@ -98,6 +101,28 @@ export function TaskDetail({
     }
   }
 
+  async function completeAssignment() {
+    const path = `/api/v1/organizations/${organizationId}/tasks/${task.uuid}/complete`;
+    const idempotencyKey = keys.current.for(`POST ${path} ${stableJson({})}`);
+    setPending("complete");
+    setBanner(null);
+
+    try {
+      await completeTask(organizationId, task.uuid, idempotencyKey);
+      onUpdated();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setConflict(error.message || "This task is no longer open.");
+        onUpdated();
+        return;
+      }
+
+      setBanner(networkOrMessage(error));
+    } finally {
+      setPending(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
@@ -106,7 +131,7 @@ export function TaskDetail({
           {instance ? <InstanceStatusBadge status={instance.status} /> : null}
         </div>
         <p className="text-sm text-muted-foreground">
-          {task.task_type === "approval" ? "Approval" : "Revision"} at {stepLabel}
+          {taskTypeLabel(task.task_type)} at {stepLabel}
           {instance?.workflow_version ? ` · Version ${instance.workflow_version.version_number}` : ""}
           {instance?.submitted_by ? ` · Submitted by ${instance.submitted_by.name}` : ""}
         </p>
@@ -126,11 +151,13 @@ export function TaskDetail({
         <Alert>
           <AlertTitle>Decision recorded</AlertTitle>
           <AlertDescription>
-            {task.decision === "approved"
-              ? "This approval was approved."
-              : task.decision === "rejected"
-                ? "This approval was rejected."
-                : "This revision was submitted."}{" "}
+            {task.task_type === "assignment"
+              ? "This assignment was completed."
+              : task.decision === "approved"
+                ? "This approval was approved."
+                : task.decision === "rejected"
+                  ? "This approval was rejected."
+                  : "This revision was submitted."}{" "}
             {instance ? `Current status: ${instanceStatusLabel(instance.status)}.` : ""}
           </AlertDescription>
         </Alert>
@@ -152,6 +179,13 @@ export function TaskDetail({
           />
         </section>
       ) : null}
+      {assignment ? (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" className="h-10" disabled={pending !== null} onClick={() => void completeAssignment()}>
+            Mark complete
+          </Button>
+        </div>
+      ) : null}
       {approval ? (
         <div className="flex flex-wrap gap-2">
           <Button type="button" className="h-10" disabled={pending !== null} onClick={() => setAction("approved")}>
@@ -168,7 +202,7 @@ export function TaskDetail({
           </Button>
         </div>
       ) : null}
-      {banner && approval ? (
+      {banner && (approval || assignment) ? (
         <p className="text-sm text-destructive" role="alert">
           {banner}
         </p>

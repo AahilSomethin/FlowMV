@@ -38,12 +38,19 @@ class WorkflowInstanceVisibility
             return true;
         }
 
-        $task = $instance->tasks()
-            ->where('status', WorkflowTaskStatus::Open)
-            ->where('task_type', WorkflowTaskType::Approval)
-            ->first();
+        $open = $instance->tasks()->where('status', WorkflowTaskStatus::Open)->get();
 
-        return $task !== null && $this->canDecide($user, $task);
+        foreach ($open as $task) {
+            if ($task->task_type === WorkflowTaskType::Approval && $this->canDecide($user, $task)) {
+                return true;
+            }
+
+            if ($task->task_type === WorkflowTaskType::Assignment && $this->canCompleteAssignment($user, $task)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function canViewTask(User $user, WorkflowTask $task): bool
@@ -68,6 +75,26 @@ class WorkflowInstanceVisibility
         return $this->eligibility->canApprove($user, $instance, $this->roles($instance, $task->node_id));
     }
 
+    public function canCompleteAssignment(User $user, WorkflowTask $task): bool
+    {
+        if ($task->task_type !== WorkflowTaskType::Assignment) {
+            return false;
+        }
+
+        $instance = $task->instance;
+
+        if ($instance === null) {
+            return false;
+        }
+
+        return app(AssignmentNodeExecutor::class)->canComplete(
+            $user,
+            $instance,
+            $task,
+            $this->nodeData($instance, $task->node_id),
+        );
+    }
+
     public function canRevise(User $user, WorkflowTask $task): bool
     {
         if ($task->task_type !== WorkflowTaskType::Revision) {
@@ -88,6 +115,17 @@ class WorkflowInstanceVisibility
      */
     private function roles(WorkflowInstance $instance, string $nodeId): array
     {
+        $data = $this->nodeData($instance, $nodeId);
+        $roles = is_array($data['assignee_roles'] ?? null) ? $data['assignee_roles'] : [];
+
+        return array_values(array_filter($roles, is_string(...)));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function nodeData(WorkflowInstance $instance, string $nodeId): array
+    {
         $version = $instance->relationLoaded('version') ? $instance->version : $instance->version()->first();
 
         if (! $version instanceof WorkflowVersion || $version->id !== $instance->workflow_version_id) {
@@ -95,8 +133,7 @@ class WorkflowInstanceVisibility
         }
 
         $node = PublishedGraph::fromVersion($version)->node($nodeId);
-        $roles = is_array($node['data']['assignee_roles'] ?? null) ? $node['data']['assignee_roles'] : [];
 
-        return array_values(array_filter($roles, is_string(...)));
+        return is_array($node['data'] ?? null) ? $node['data'] : [];
     }
 }

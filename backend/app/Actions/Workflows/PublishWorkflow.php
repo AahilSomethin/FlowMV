@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowDraft;
 use App\Models\WorkflowVersion;
+use App\Services\Workflows\Nodes\NodeRegistry;
 use App\Services\Workflows\WorkflowDefinitionNormalizer;
 use App\Services\Workflows\WorkflowDefinitionValidator;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -60,6 +61,7 @@ class PublishWorkflow
                     'graph_definition' => $normalized->graph,
                     'form_definition' => $normalized->form,
                     'content_hash' => $normalized->hash,
+                    'node_registry_version' => NodeRegistry::CURRENT,
                     'published_by' => $user->id,
                     'published_at' => now(),
                 ]);

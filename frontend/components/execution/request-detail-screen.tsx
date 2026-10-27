@@ -187,16 +187,19 @@ export function RequestDetailScreen() {
                 {(instance.tasks ?? []).map((task) => (
                   <li key={task.uuid} className="flex flex-col gap-1 text-sm">
                     <span className="font-medium">
-                      {task.task_type === "approval" ? "Approval" : "Revision"} · {task.node_label ?? task.node_id}
+                      {task.task_type === "approval" ? "Approval" : task.task_type === "assignment" ? "Assignment" : "Revision"} ·{" "}
+                      {task.node_label ?? task.node_id}
                     </span>
                     <span className="text-muted-foreground">
                       {task.status === "open"
                         ? "Open"
-                        : task.decision === "approved"
-                          ? "Approved"
-                          : task.decision === "rejected"
-                            ? "Rejected"
-                            : "Submitted"}
+                        : task.task_type === "assignment"
+                          ? "Completed"
+                          : task.decision === "approved"
+                            ? "Approved"
+                            : task.decision === "rejected"
+                              ? "Rejected"
+                              : "Submitted"}
                       {task.completed_at ? ` · ${formatWhen(task.completed_at)}` : ""}
                     </span>
                   </li>
