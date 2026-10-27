@@ -8,7 +8,10 @@ import { ErrorState, describeApiError } from "@/components/patterns/error-state"
 import { LoadingState } from "@/components/patterns/loading-state";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowRight, Search, FileText, ArrowLeft, ClipboardList } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ListPager } from "@/components/execution/list-pager";
+import { EmptyState } from "@/components/patterns/empty-state";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
@@ -26,6 +29,11 @@ export function RequestCreateScreen() {
   const { user } = useAuth();
   const organizationId = user?.current_organization?.uuid;
   const keys = useRef(new IdempotencyKeys());
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowSummary | null>(null);
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [workflowId, setWorkflowId] = useState<string>("");
   const [definition, setDefinition] = useState<FormDefinition | null>(null);
@@ -36,6 +44,8 @@ export function RequestCreateScreen() {
   const [banner, setBanner] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const catalogKey = `${organizationId}:${page}:${search.trim()}`;
+
   useEffect(() => {
     if (!organizationId) {
       return;
@@ -43,15 +53,18 @@ export function RequestCreateScreen() {
 
     let active = true;
 
-    void listPublishedWorkflows(organizationId, "", 1)
+    const timer = window.setTimeout(() => {
+    void listPublishedWorkflows(organizationId, search.trim(), page)
       .then((result) => {
         if (!active) {
           return;
         }
 
         setWorkflows(result.items);
+        setLastPage(result.last_page);
+        setTotal(result.total);
         setError(null);
-        setLoadedKey(organizationId);
+        setLoadedKey(catalogKey);
       })
       .catch((caught: unknown) => {
         if (!active) {
@@ -60,13 +73,15 @@ export function RequestCreateScreen() {
 
         setWorkflows([]);
         setError(describeApiError(caught, "Could not load published workflows.").description);
-        setLoadedKey(organizationId);
+        setLoadedKey(catalogKey);
       });
 
+    }, 200);
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
-  }, [organizationId]);
+  }, [organizationId, page, search, catalogKey]);
 
   useEffect(() => {
     if (!organizationId || !workflowId) {
@@ -81,7 +96,13 @@ export function RequestCreateScreen() {
           return;
         }
 
-        setDefinition(workflow.published?.form_definition ?? { fields: [] });
+        if (!workflow.published) {
+          setDefinition(null);
+          setBanner("This service is no longer available. Choose another service or try again later.");
+          setLoadedWorkflowId(workflowId);
+          return;
+        }
+        setDefinition(workflow.published.form_definition);
         setVersion(workflow.published?.version_number ?? workflow.current_version_number);
         setLoadedWorkflowId(workflowId);
         setBanner(null);
@@ -92,6 +113,7 @@ export function RequestCreateScreen() {
         }
 
         setDefinition(null);
+        setLoadedWorkflowId(workflowId);
         setBanner(describeApiError(caught, "Could not load that workflow.").description);
       });
 
@@ -100,7 +122,7 @@ export function RequestCreateScreen() {
     };
   }, [organizationId, workflowId]);
 
-  if (!organizationId || loadedKey !== organizationId) {
+  if (!organizationId || !loadedKey?.startsWith(`${organizationId}:`)) {
     return <LoadingState label="Loading workflows" />;
   }
 
@@ -129,7 +151,7 @@ export function RequestCreateScreen() {
       }
 
       if (caught instanceof ApiError && caught.status === 0) {
-        setBanner("Could not reach FlowMV. Retrying will reuse the same idempotency key.");
+        setBanner("Could not reach FlowMV. Try again safely; your request will not be duplicated.");
         return;
       }
 
@@ -143,53 +165,40 @@ export function RequestCreateScreen() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="New request"
-        description="Choose a published workflow. The form comes from that published version."
+        description="Find a workplace service, send your request, and track what happens next."
         actions={
           <Button variant="outline" className="h-10" asChild>
             <Link href="/requests">Back to requests</Link>
           </Button>
         }
       />
-      {workflows.length === 0 ? (
-        <ErrorState title="No published workflows" description="Publish a workflow before starting a request." />
+      {!workflowId ? (
+        <>
+          <div className="relative max-w-lg"><Search className="absolute top-3 left-3 size-4 text-muted-foreground" aria-hidden="true" /><Input className="h-10 pl-10" aria-label="Search services" placeholder="What do you need help with?" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></div>
+          {loadedKey !== catalogKey ? <LoadingState label="Finding services" /> : error ? <ErrorState title="Services unavailable" description={error} /> : workflows.length === 0 ? <EmptyState icon={<ClipboardList />} title={search ? "No matching services" : "No services available yet"} description={search ? "Try a different name or clear your search." : "Your workspace’s published services will appear here. Contact your workspace administrator if you need help."} /> : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {workflows.map((workflow) => (
+                <article key={workflow.uuid} className="flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText className="size-5" aria-hidden="true" /></span>
+                  <div className="flex-1"><h2 className="font-semibold">{workflow.name}</h2>{workflow.description ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{workflow.description}</p> : <p className="mt-2 text-sm leading-6 text-muted-foreground">Complete the form to start this request.</p>}</div>
+                  <Button variant="outline" className="justify-between" onClick={() => { setSelectedWorkflow(workflow); setWorkflowId(workflow.uuid); setDefinition(null); setLoadedWorkflowId(null); setBanner(null); }}>Start request<ArrowRight className="size-4" aria-hidden="true" /></Button>
+                </article>
+              ))}
+            </div>
+          )}
+          {loadedKey === catalogKey ? <ListPager page={page} lastPage={lastPage} total={total} label="services" onPage={setPage} /> : null}
+        </>
       ) : (
-        <div className="flex max-w-xl flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="workflow" className="text-sm font-medium">
-              Workflow
-            </label>
-            <Select
-              value={workflowId}
-              onValueChange={(value) => {
-                setWorkflowId(value);
-                setDefinition(null);
-              }}
-            >
-              <SelectTrigger id="workflow" className="w-full">
-                <SelectValue placeholder="Choose a workflow" />
-              </SelectTrigger>
-              <SelectContent>
-                {workflows.map((workflow) => (
-                  <SelectItem key={workflow.uuid} value={workflow.uuid}>
-                    {workflow.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {version ? <p className="text-sm text-muted-foreground">Version {version}</p> : null}
-          </div>
-          {definition && loadedWorkflowId === workflowId ? (
-            <DynamicForm
-              key={`${workflowId}:${version ?? 0}`}
-              definition={definition}
-              submitLabel="Submit request"
-              pending={pending}
-              banner={banner}
-              onSubmit={submit}
-            />
-          ) : workflowId ? (
-            <LoadingState label="Loading form" />
-          ) : null}
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]">
+          <section className="rounded-2xl border bg-card p-5 shadow-sm sm:p-8">
+            <Button variant="ghost" size="sm" className="mb-5" disabled={pending} onClick={() => { setWorkflowId(""); setDefinition(null); setBanner(null); }}><ArrowLeft className="size-4" aria-hidden="true" />Choose another service</Button>
+            <h2 className="text-xl font-semibold tracking-tight">{selectedWorkflow?.name ?? "Request details"}</h2>
+            {selectedWorkflow?.description ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{selectedWorkflow.description}</p> : null}
+            <div className="mt-6">
+              {definition && loadedWorkflowId === workflowId ? <DynamicForm key={`${workflowId}:${version ?? 0}`} definition={definition} submitLabel="Submit request" confirmTitle="Submit this request?" confirmDescription={`Your answers will start “${selectedWorkflow?.name ?? "this request"}”. Check the details before continuing.`} pending={pending} banner={banner} onSubmit={submit} /> : loadedWorkflowId === workflowId && banner ? <ErrorState title="Form unavailable" description={banner} /> : <LoadingState label="Loading form" />}
+            </div>
+          </section>
+          <aside className="rounded-xl border bg-card p-5"><h2 className="flex items-center gap-2 text-sm font-semibold"><ClipboardList className="size-4 text-primary" aria-hidden="true" />Before you submit</h2><ol className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground"><li>1. Complete the required fields.</li><li>2. Review your answers and submit.</li><li>3. Track the next step in Requests. If changes are needed, they’ll appear in My Tasks.</li></ol></aside>
         </div>
       )}
     </div>

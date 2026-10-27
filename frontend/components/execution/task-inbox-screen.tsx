@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ListTodo } from "lucide-react";
+import { ListTodo, ShieldCheck, RotateCcw, UserRoundCheck } from "lucide-react";
 import { TaskDetail } from "@/components/execution/task-detail";
 import { ListPager } from "@/components/execution/list-pager";
 import { EmptyState } from "@/components/patterns/empty-state";
@@ -67,19 +67,18 @@ export function TaskInboxScreen() {
 
   const selected = items.find((item) => item.uuid === selectedId) ?? null;
 
-  if (!organizationId || loadedKey !== requestKey) {
+  const loading = loadedKey !== requestKey;
+
+  if (!organizationId || !loadedKey?.startsWith(`${organizationId}:`)) {
     return <LoadingState label="Loading tasks" />;
   }
 
-  if (error) {
-    return <ErrorState title="Tasks unavailable" description={error} />;
-  }
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="My Tasks"
-        description="Open approvals and revisions assigned to you, plus completed tasks you are allowed to see."
+        description="Review approvals, complete assigned work, and respond to revision requests."
       />
       <Tabs
         value={status}
@@ -90,7 +89,7 @@ export function TaskInboxScreen() {
         }}
       >
         <TabsList className="max-w-md">
-          <TabsTrigger value="open">Open</TabsTrigger>
+          <TabsTrigger value="open">Needs action</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
       </Tabs>
@@ -104,13 +103,13 @@ export function TaskInboxScreen() {
         aria-label="Search tasks"
         className="h-10 sm:max-w-xs"
       />
-      {items.length === 0 ? (
+      {loading ? <LoadingState label="Updating tasks" /> : error ? <ErrorState title="Tasks unavailable" description={error} /> : items.length === 0 ? (
         <EmptyState
           icon={<ListTodo />}
           title={status === "open" ? "No open tasks" : "No completed tasks"}
           description={
             status === "open"
-              ? "Approvals and revisions for you will appear here."
+              ? "Approvals, assignments, and revision requests for you will appear here."
               : "Completed tasks you can view will appear here."
           }
         />
@@ -132,7 +131,8 @@ export function TaskInboxScreen() {
                     </Link>
                     <button
                       type="button"
-                      className={`hidden w-full rounded-xl bg-card p-4 text-left ring-1 lg:flex lg:flex-col lg:gap-1 ${active ? "ring-ring" : "ring-foreground/10"}`}
+                      className={`hidden w-full rounded-xl bg-card p-4 text-left ring-1 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 hover:bg-muted/50 lg:flex lg:flex-col lg:gap-1 ${active ? "ring-ring" : "ring-foreground/10"}`}
+                      aria-pressed={active}
                       onClick={() => setSelectedId(task.uuid)}
                     >
                       <TaskSummary task={task} name={name} />
@@ -169,12 +169,13 @@ export function TaskInboxScreen() {
 }
 
 function TaskSummary({ task, name }: { task: WorkflowTask; name: string }) {
+  const Icon = task.task_type === "approval" ? ShieldCheck : task.task_type === "revision" ? RotateCcw : UserRoundCheck;
   return (
     <>
-      <span className="font-medium">{name}</span>
+      <span className="flex items-center gap-2 font-medium"><Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />{name}</span>
       <span className="text-sm text-muted-foreground">
         {taskTypeLabel(task.task_type)} · {task.node_label ?? "Current step"} ·{" "}
-        {formatWhen(task.assigned_at)}
+        {formatWhen(task.status === "completed" ? task.completed_at : task.assigned_at)}
       </span>
     </>
   );

@@ -20,7 +20,7 @@ export function SettingsScreen() {
     <>
       <PageHeader
         title="Settings"
-        description="Account and appearance preferences for this browser. Password and notification changes are not available."
+        description="Manage your account, workspace details, and appearance."
       />
       <div className="grid gap-4 lg:grid-cols-2">
         <DetailSection title="Account">
@@ -30,7 +30,7 @@ export function SettingsScreen() {
             <StatusBadge>{user.email_verified_at ? "Verified" : "Not verified"}</StatusBadge>
           </DetailItem>
         </DetailSection>
-        <DetailSection title="Workspace" description="Role and organization come from the current session.">
+        <DetailSection title="Workspace" description="Your access in the current workspace.">
           {current ? (
             <>
               <DetailItem label="Name">{current.name}</DetailItem>
@@ -62,7 +62,7 @@ export function SettingsScreen() {
           </div>
         </DetailItem>
       </DetailSection>
-      <DetailSection title="Unavailable" description="These settings need an API that does not exist yet.">
+      <DetailSection title="More account settings" description="Additional account options.">
         <DetailItem label="Password">Password changes are not available.</DetailItem>
         <DetailItem label="Notifications">Notification preferences are not available.</DetailItem>
       </DetailSection>

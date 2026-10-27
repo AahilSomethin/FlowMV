@@ -179,38 +179,3 @@ export const OPERATORS: Record<FieldType, ConditionOperator[]> = {
 };
 
 export const VALUELESS_OPERATORS = new Set<ConditionOperator>(["is_blank", "is_not_blank", "is_true", "is_false"]);
-
-export const NODE_COPY: Record<NodeType, { title: string; description: string }> = {
-  start: {
-    title: "Start",
-    description: "Where a submission enters the workflow.",
-  },
-  approval: {
-    title: "Approval",
-    description: "A role approves or rejects the request. Both outcomes must be connected.",
-  },
-  condition: {
-    title: "Condition",
-    description: "Branches on a form field. True and false each need a connection.",
-  },
-  revision: {
-    title: "Revision",
-    description: "Rejection returns the request to the submitter, then back to an earlier approval.",
-  },
-  end: {
-    title: "End",
-    description: "Ends the workflow as completed or rejected.",
-  },
-  notification: {
-    title: "Notification",
-    description: "Sends in-app or email updates to selected recipients, then continues.",
-  },
-  assignment: {
-    title: "Assignment",
-    description: "Assigns a task to a role or member. They must complete it before the workflow continues.",
-  },
-  delay: {
-    title: "Delay",
-    description: "Pauses the workflow for a duration or until a time, then continues automatically.",
-  },
-};

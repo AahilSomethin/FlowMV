@@ -38,6 +38,8 @@ const statuses: Array<{ value: "all" | InstanceStatus; label: string }> = [
   { value: "running", label: "In progress" },
   { value: "awaiting_approval", label: "Awaiting approval" },
   { value: "awaiting_revision", label: "Needs revision" },
+  { value: "awaiting_assignment", label: "Awaiting assignment" },
+  { value: "awaiting_delay", label: "Waiting" },
   { value: "completed", label: "Completed" },
   { value: "rejected", label: "Rejected" },
   { value: "failed", label: "Failed" },
@@ -104,7 +106,6 @@ export function AnalyticsScreen() {
             return;
           }
 
-          setReport(null);
           setError(describeApiError(caught, "Could not load analytics.").description);
           setLoadedKey(`${organizationId}:${queryString(nextQuery)}`);
         });
@@ -116,7 +117,9 @@ export function AnalyticsScreen() {
     };
   }, [organizationId, from, to, workflow, status]);
 
-  if (!organizationId || loadedKey !== requestKey || !report) {
+  const loading = loadedKey !== requestKey;
+
+  if (!organizationId || !loadedKey?.startsWith(`${organizationId}:`) || !report) {
     if (error && loadedKey === requestKey) {
       return <ErrorState title="Analytics unavailable" description={error} />;
     }
@@ -136,6 +139,7 @@ export function AnalyticsScreen() {
             type="button"
             variant="outline"
             className="h-10"
+            disabled={loading}
             onClick={() => void downloadExport(organizationId, "analytics", query)}
           >
             Export CSV
@@ -213,7 +217,7 @@ export function AnalyticsScreen() {
         Status filtering changes the counts and the volume chart. Completion rate, rejection rate, and completion time ignore that filter.
         Approval decisions are counted separately from request outcomes.
       </p>
-      {report.cohort.total === 0 ? (
+      {loading ? <LoadingState label="Updating analytics" /> : error ? <ErrorState title="Could not update results" description={error} /> : report.cohort.total === 0 ? (
         <EmptyState
           icon={<BarChart3 />}
           title="No requests in this range"

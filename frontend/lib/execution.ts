@@ -14,6 +14,8 @@ export type InstanceStatus =
 
 export type FailureCode =
   | "no_eligible_approver"
+  | "no_eligible_assignee"
+  | "no_notification_recipients"
   | "invalid_graph"
   | "unknown_operator"
   | "corrupt_state";
@@ -88,6 +90,7 @@ export type WorkflowTask = {
   decision: TaskDecision | null;
   node_id: string;
   node_label: string | null;
+  instructions?: string | null;
   assigned_role: string | null;
   assigned_at: string;
   completed_at: string | null;
@@ -252,6 +255,10 @@ export function failureLabel(code: FailureCode | null): string {
   switch (code) {
     case "no_eligible_approver":
       return "Nobody is eligible to approve this request.";
+      case "no_eligible_assignee":
+        return "Nobody is currently eligible for the assigned work. Ask an administrator to check the assignment.";
+      case "no_notification_recipients":
+        return "An update could not be sent because no eligible recipients were found. Ask an administrator to check the notification settings.";
     case "invalid_graph":
       return "The published workflow could not continue.";
     case "unknown_operator":
@@ -275,6 +282,14 @@ export function eventLabel(eventType: string): string {
       return "Approved";
     case "task_rejected":
       return "Rejected";
+      case "task_completed": return "Assignment completed";
+      case "task_reassigned": return "Task reassigned";
+      case "notification_queued": return "Notification scheduled";
+      case "notification_sent": return "Notification sent";
+      case "notification_failed": return "Notification could not be delivered";
+      case "delay_started": return "Waiting period started";
+      case "delay_resumed": return "Workflow resumed";
+      case "delay_cancelled": return "Waiting period cancelled";
     case "revision_requested":
       return "Revision requested";
     case "revision_submitted":

@@ -13,6 +13,10 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
       event.returnValue = "";
     }
 
+    function onNavigate(event: Event) {
+      if (!window.confirm("You have unsaved workflow changes. Leave without saving?")) event.preventDefault();
+    }
+
     function onClick(event: MouseEvent) {
       const target = event.target instanceof Element ? event.target : null;
       const anchor = target?.closest("a");
@@ -34,10 +38,12 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
     }
 
     window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("flowmv:before-navigate", onNavigate);
     document.addEventListener("click", onClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("flowmv:before-navigate", onNavigate);
       document.removeEventListener("click", onClick, true);
     };
   }, [dirty]);

@@ -147,6 +147,7 @@ export function TaskDetail({
           <AlertDescription>{conflict}</AlertDescription>
         </Alert>
       ) : null}
+      {task.instructions ? <Alert><AlertTitle>{task.task_type === "revision" ? "What needs to change" : "Step instructions"}</AlertTitle><AlertDescription className="whitespace-pre-wrap">{task.instructions}</AlertDescription></Alert> : null}
       {task.status === "completed" ? (
         <Alert>
           <AlertTitle>Decision recorded</AlertTitle>
@@ -250,6 +251,8 @@ function RevisionEditor({
       definition={definition}
       initialValues={initialValues}
       submitLabel="Resubmit"
+      confirmTitle="Resubmit your updated request?"
+      confirmDescription="Review the corrected answers. Submitting sends the request back to its approval step."
       pending={pending}
       banner={banner}
       onSubmit={onSubmit}

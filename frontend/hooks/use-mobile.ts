@@ -15,3 +15,13 @@ export function useIsMobile() {
     () => false,
   )
 }
+
+function subscribeCompact(onStoreChange: () => void) {
+  const mql = window.matchMedia("(max-width: 1279px)")
+  mql.addEventListener("change", onStoreChange)
+  return () => mql.removeEventListener("change", onStoreChange)
+}
+
+export function useIsCompact() {
+  return React.useSyncExternalStore(subscribeCompact, () => window.innerWidth < 1280, () => false)
+}

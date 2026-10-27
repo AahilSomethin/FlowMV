@@ -1,112 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, GitBranch, Inbox, ListTodo } from "lucide-react";
-import { EmptyState } from "@/components/patterns/empty-state";
-import { DetailItem, DetailSection, PageHeader } from "@/components/patterns/page-header";
-import { RoleBadge, StatusBadge } from "@/components/patterns/status-badge";
+import { ArrowRight, BarChart3, GitBranch, Inbox, ListTodo, Sparkles } from "lucide-react";
+import { PageHeader } from "@/components/patterns/page-header";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
-const connected = [
-  {
-    href: "/tasks",
-    label: "My Tasks",
-    icon: ListTodo,
-    detail: "Review approvals and revisions assigned to you.",
-  },
-  {
-    href: "/requests",
-    label: "Requests",
-    icon: Inbox,
-    detail: "Start a published workflow and follow its progress.",
-  },
-  {
-    href: "/analytics",
-    label: "Analytics",
-    icon: BarChart3,
-    detail: "Review request outcomes, waits, and the audit log for this workspace.",
-  },
+const destinations = [
+  { href: "/requests/new", label: "Start a request", icon: Inbox, detail: "Find a workplace service and send the information your team needs.", action: "Browse services" },
+  { href: "/tasks", label: "Move work forward", icon: ListTodo, detail: "Review approvals, complete assignments, and respond to requests for changes.", action: "Open My Tasks" },
+  { href: "/workflows", label: "Design your processes", icon: GitBranch, detail: "Turn a form into a clear sequence of decisions, tasks, and updates.", action: "Explore workflows" },
+  { href: "/analytics", label: "See how work flows", icon: BarChart3, detail: "Understand request outcomes and waiting times using your workspace’s recorded activity.", action: "View analytics" },
 ] as const;
 
 export function DashboardScreen() {
   const { user } = useAuth();
-  const current = user?.current_organization ?? null;
-
-  if (!user) {
-    return null;
-  }
+  const current = user?.current_organization;
+  if (!user) return null;
+  const items = current?.role === "employee" ? destinations.filter((item) => item.href !== "/workflows") : destinations;
 
   return (
     <>
-      <PageHeader
-        title={`Welcome, ${user.name}`}
-        description="This overview uses your account and the workspace selected on the server."
-      />
-      {current ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <DetailSection title="Workspace" description="Loaded from your current organization.">
-            <DetailItem label="Name">{current.name}</DetailItem>
-            <DetailItem label="Slug">{current.slug}</DetailItem>
-            <DetailItem label="Your role">
-              <RoleBadge role={current.role} />
-            </DetailItem>
-          </DetailSection>
-          <DetailSection title="Account" description="This is the signed-in user for this browser session.">
-            <DetailItem label="Name">{user.name}</DetailItem>
-            <DetailItem label="Email">{user.email}</DetailItem>
-            <DetailItem label="Email status">
-              <StatusBadge>{user.email_verified_at ? "Verified" : "Not verified"}</StatusBadge>
-            </DetailItem>
-            <DetailItem label="Memberships">{user.organizations.length}</DetailItem>
-          </DetailSection>
-        </div>
-      ) : (
-        <EmptyState
-          title="Choose a workspace"
-          description="Select an organization from the workspace menu. FlowMV will replace this page with that organization's details."
-        />
-      )}
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10 sm:max-w-md">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <GitBranch className="size-4 text-muted-foreground" aria-hidden="true" />
-              <h2 className="truncate text-sm font-medium">Workflows</h2>
-            </div>
-            <StatusBadge>Available</StatusBadge>
-          </div>
-          <p className="text-sm leading-6 text-muted-foreground">
-            Design forms and approval paths. Published versions stay available while a newer draft is in progress.
-          </p>
-          <Button variant="outline" className="h-10 w-fit" asChild>
-            <Link href="/workflows">Open Workflows</Link>
-          </Button>
-        </div>
+      <PageHeader title={`Welcome, ${user.name.split(" ")[0]}`} description={current ? `Your work in ${current.name}, from first request to final decision.` : "Choose a workspace to get started."} actions={<Button className="h-10" asChild><Link href="/requests/new">Start a request<ArrowRight className="size-4" aria-hidden="true" /></Link></Button>} />
+      <section className="rounded-2xl border bg-card p-6 shadow-sm md:p-8">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary"><Sparkles className="size-4" aria-hidden="true" />A clearer way to work</div>
+        <h2 className="max-w-xl text-2xl font-semibold leading-tight tracking-tight md:text-3xl">Every request has a next step.</h2>
+        <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">Requests are the things you submit. My Tasks holds the work that needs your action. Workflows define how each process moves forward.</p>
       </section>
-      <section className="flex flex-col gap-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {connected.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <div key={item.href} className="flex flex-col gap-3 rounded-xl bg-card px-4 py-4 ring-1 ring-foreground/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
-                    <h3 className="truncate text-sm font-medium">{item.label}</h3>
-                  </div>
-                  <StatusBadge>Available</StatusBadge>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">{item.detail}</p>
-                <Button variant="outline" className="h-10 w-fit" asChild>
-                  <Link href={item.href}>Open {item.label}</Link>
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <div className="grid gap-4 md:grid-cols-2">
+        {items.map((item) => { const Icon = item.icon; return (
+          <section key={item.href} className="flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
+            <Icon className="size-5 text-primary" aria-hidden="true" />
+            <div className="flex-1"><h2 className="font-semibold">{item.label}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">{item.detail}</p></div>
+            <Link href={item.href} className="flex w-fit items-center gap-2 rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">{item.action}<ArrowRight className="size-3.5" aria-hidden="true" /></Link>
+          </section>
+        ); })}
+      </div>
     </>
   );
 }

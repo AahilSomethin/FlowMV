@@ -30,7 +30,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
+      <SidebarProvider key={canvas ? "studio" : "workspace"} defaultOpen={!canvas}>
         <AppSidebar />
         <SidebarInset
           id="main"
@@ -42,7 +42,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
         >
           Skip to content
         </a>
-        <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b bg-background px-3 py-2 md:px-4">
+        <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b bg-card/95 px-3 py-2 md:px-4">
           <ShellSidebarTrigger />
           <Separator orientation="vertical" className="hidden h-5 sm:block" />
           <AppBreadcrumbs />
@@ -63,7 +63,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
               </div>
             )
           ) : (
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-4 md:p-8 lg:py-10">
               {pending ? (
                 <LoadingState label="Switching workspace" />
               ) : (

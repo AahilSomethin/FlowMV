@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateDefinition } from "@/lib/workflows/definition";
+import { snapshotKey, validateDefinition } from "@/lib/workflows/definition";
 import {
   addWorkflowNode,
   connectNodes,
@@ -8,9 +8,38 @@ import {
   markSaved,
   undo,
   updateNodeData,
+  setWorkflowConnection,
 } from "@/lib/workflows/editor-state";
 
 describe("workflow editor state", () => {
+  it("replaces a connection as one undoable change and synchronizes revision targets", () => {
+    let state = createEditorState({ nodes: [], edges: [] }, { fields: [] }, 1);
+    state = addWorkflowNode(state, "revision", { x: 0, y: 0 }, "revision");
+    state = addWorkflowNode(state, "approval", { x: 336, y: 0 }, "first");
+    state = addWorkflowNode(state, "approval", { x: 672, y: 0 }, "second");
+    state = setWorkflowConnection(state, "revision", "return", "first");
+    const replaced = setWorkflowConnection(state, "revision", "return", "second");
+    expect(replaced.edges).toHaveLength(1);
+    expect(replaced.edges[0].target).toBe("second");
+    expect(replaced.nodes[0].data.return_to_node_id).toBe("second");
+    expect(undo(replaced).edges[0].target).toBe("first");
+    const disconnected = setWorkflowConnection(replaced, "revision", "return", "");
+    expect(disconnected.edges).toHaveLength(0);
+    expect(disconnected.nodes[0].data.return_to_node_id).toBeNull();
+    expect(setWorkflowConnection(state, "revision", "return", "revision")).toBe(state);
+  });
+  it("preserves edits made while a draft save is in flight", () => {
+    let submitted = createEditorState({ nodes: [], edges: [] }, { fields: [] }, 1);
+    submitted = addWorkflowNode(submitted, "approval", { x: 0, y: 0 }, "approval");
+    const graph = { nodes: submitted.nodes, edges: submitted.edges };
+    const form = { fields: submitted.fields };
+    const edited = updateNodeData(submitted, "approval", { label: "A newer edit" });
+    const saved = markSaved(edited, graph, form, 2, snapshotKey(graph, form));
+    expect(saved.nodes[0].data.label).toBe("A newer edit");
+    expect(saved.revision).toBe(2);
+    expect(isDirty(saved)).toBe(true);
+    expect(isDirty(undo(saved))).toBe(false);
+  });
   it("adds nodes, connects them, edits properties, and undoes the edit", () => {
     let state = createEditorState({ nodes: [], edges: [] }, { fields: [] }, 1);
     state = addWorkflowNode(state, "start", { x: 0, y: 0 }, "start");

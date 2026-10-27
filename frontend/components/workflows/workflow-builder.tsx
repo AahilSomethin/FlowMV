@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCheck, Save, Undo2, Redo2, Upload, Workflow, LayoutGrid } from "lucide-react";
 import { FormBuilder } from "@/components/workflows/form-builder";
 import { NodeInspector } from "@/components/workflows/node-inspector";
+import { NodeConnections } from "@/components/workflows/node-connections";
 import { NodePalette } from "@/components/workflows/node-palette";
 import { UnsavedChangesGuard } from "@/components/workflows/unsaved-changes-guard";
 import { ValidationList } from "@/components/workflows/validation-list";
@@ -24,11 +25,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsCompact, useIsMobile } from "@/hooks/use-mobile";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { validateDefinition } from "@/lib/workflows/definition";
+import { snapshotKey, validateDefinition } from "@/lib/workflows/definition";
 import {
   addWorkflowNode,
   connectNodes,
@@ -42,6 +44,7 @@ import {
   removeWorkflowNode,
   replaceFields,
   setRevisionTarget,
+  setWorkflowConnection,
   undo,
   updateNodeData,
   type EditorState,
@@ -52,6 +55,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
   const { user } = useAuth();
   const organizationId = user?.current_organization?.uuid;
   const isMobile = useIsMobile();
+  const isCompact = useIsCompact();
   const [detail, setDetail] = useState<WorkflowDetail | null>(null);
   const [state, setState] = useState<EditorState | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -61,9 +65,11 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
   const [conflict, setConflict] = useState(false);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState("node");
   const dragRef = useRef(false);
   const requestKey = organizationId ? `${organizationId}:${workflowId}` : null;
 
@@ -110,22 +116,23 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (!detail?.can_update || isMobile || saving || publishOpen) return;
       const target = event.target;
 
       if (target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) {
         return;
       }
 
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+      if ((event.metaKey || event.ctrlKey) && ["z", "y"].includes(event.key.toLowerCase())) {
         event.preventDefault();
-        setState((current) => (current ? (event.shiftKey ? redo(current) : undo(current)) : current));
+        setState((current) => (current ? (event.shiftKey || event.key.toLowerCase() === "y" ? redo(current) : undo(current)) : current));
       }
     }
 
     window.addEventListener("keydown", onKey);
 
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [detail?.can_update, isMobile, saving, publishOpen]);
 
   if (!requestKey || loadedKey !== requestKey) {
     return <LoadingState label="Loading workflow" />;
@@ -137,6 +144,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
 
   const dirty = isDirty(state);
   const editable = detail.can_update && !isMobile;
+  const liveViolations = validateDefinition({ nodes: state.nodes, edges: state.edges }, { fields: state.fields });
   const selected = state.nodes.find((node) => node.id === selectedId) ?? null;
   const payload = {
     revision: state.revision,
@@ -160,7 +168,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
       const graph = saved.draft?.graph_definition ?? payload.graph_definition;
       const form = saved.draft?.form_definition ?? payload.form_definition;
       setDetail(saved);
-      setState((current) => (current ? markSaved(current, graph, form, saved.draft?.revision ?? current.revision) : current));
+      setState((current) => (current ? markSaved(current, graph, form, saved.draft?.revision ?? current.revision, snapshotKey(payload.graph_definition, payload.form_definition)) : current));
       setConflict(false);
       setNotice("Draft saved.");
     } catch (caught) {
@@ -184,6 +192,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
       return local.length === 0;
     }
 
+    setValidating(true);
     try {
       await api(`/api/v1/organizations/${organizationId}/workflows/${workflowId}/draft/validate`, {
         method: "POST",
@@ -200,11 +209,18 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
       }
 
       return false;
+    } finally {
+      setValidating(false);
     }
   }
 
   async function publish() {
     if (!organizationId) {
+      return;
+    }
+    if (dirty) {
+      setPublishOpen(false);
+      setNotice("Save your latest changes before publishing.");
       return;
     }
 
@@ -238,10 +254,11 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
   }
 
   const inspector = (
-    <Tabs defaultValue="node">
+    <Tabs value={inspectorTab} onValueChange={setInspectorTab}>
+      <Select value={selected?.id ?? "__none__"} onValueChange={(value) => { setSelectedId(value === "__none__" ? null : value); setInspectorTab("node"); }}><SelectTrigger className="mb-3 w-full" aria-label="Select a workflow step"><SelectValue placeholder="Select a step" /></SelectTrigger><SelectContent><SelectItem value="__none__">Select a step</SelectItem>{state.nodes.map((node, index) => <SelectItem key={node.id} value={node.id}>{index + 1}. {node.data.label || "Untitled step"}</SelectItem>)}</SelectContent></Select>
       <TabsList>
-        <TabsTrigger value="node">Node</TabsTrigger>
-        <TabsTrigger value="form">Form</TabsTrigger>
+        <TabsTrigger value="node">Step settings</TabsTrigger>
+        <TabsTrigger value="form">Request form</TabsTrigger>
       </TabsList>
       <TabsContent value="node">
         <NodeInspector
@@ -249,9 +266,11 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
           nodes={state.nodes}
           fields={state.fields}
           organizationId={organizationId}
+          violations={liveViolations.filter((item) => item.node_id === selected?.id)}
           onChange={(patch) => setState((current) => (current && selected ? updateNodeData(current, selected.id, patch) : current))}
           onRevisionTarget={(approvalId) => setState((current) => (current && selected ? setRevisionTarget(current, selected.id, approvalId) : current))}
         />
+        {selected ? <NodeConnections node={selected} nodes={state.nodes} edges={state.edges} onConnect={(handle, target) => setState((current) => current ? setWorkflowConnection(current, selected.id, handle, target) : current)} /> : null}
       </TabsContent>
       <TabsContent value="form">
         <FormBuilder fields={state.fields} onChange={(fields) => setState((current) => (current ? replaceFields(current, fields) : current))} />
@@ -261,30 +280,32 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <UnsavedChangesGuard dirty={dirty && editable} />
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
+      <UnsavedChangesGuard dirty={dirty} />
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-card px-4 py-3">
         <Button variant="ghost" size="sm" asChild>
           <Link href={`/workflows/${workflowId}`}>
             <ArrowLeft className="size-4" />
             Back
           </Link>
         </Button>
-        <h1 className="min-w-0 flex-1 truncate text-sm font-medium">{detail.name}</h1>
+        <div className="min-w-0 flex-1"><p className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"><Workflow className="size-3" aria-hidden="true" />Workflow studio</p><h1 className="truncate text-sm font-semibold">{detail.name}</h1></div>
+        {!dirty ? <Badge variant="outline">Draft saved</Badge> : null}
         {dirty && editable ? <Badge variant="outline">Unsaved changes</Badge> : null}
         {detail.status === "published" && detail.has_unpublished_changes ? <Badge variant="secondary">Unpublished changes</Badge> : null}
         {editable ? (
           <>
+            <Button type="button" variant="ghost" size="sm" title="Arrange steps in a grid; undo to restore positions" onClick={() => setState((current) => current ? moveNodes(current, Object.fromEntries(current.nodes.map((node, index) => [node.id, { x: (index % 3) * 336, y: Math.floor(index / 3) * 360 }])), true) : current)}><LayoutGrid className="size-3.5" aria-hidden="true" />Tidy layout</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setState((current) => (current ? undo(current) : current))} disabled={state.past.length === 0}>
-              Undo
+              <Undo2 className="size-3.5" aria-hidden="true" />Undo
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setState((current) => (current ? redo(current) : current))} disabled={state.future.length === 0}>
-              Redo
+              <Redo2 className="size-3.5" aria-hidden="true" />Redo
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => void saveDraft()} disabled={saving || !dirty}>
-              Save
+              <Save className="size-3.5" aria-hidden="true" />{saving ? "Saving…" : "Save draft"}
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => void validateDraft()}>
-              Check
+            <Button type="button" variant="outline" size="sm" onClick={() => void validateDraft()} disabled={saving || validating}>
+              <CheckCheck className="size-3.5" aria-hidden="true" />{validating ? "Checking…" : "Check workflow"}
             </Button>
           </>
         ) : null}
@@ -292,7 +313,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
           <Button
             type="button"
             size="sm"
-            disabled={saving}
+            disabled={saving || validating || !editable}
             onClick={() => {
               if (dirty) {
                 setNotice("Save the draft before publishing.");
@@ -306,13 +327,13 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
               });
             }}
           >
-            Publish
+            <Upload className="size-3.5" aria-hidden="true" />Publish
           </Button>
         ) : null}
       </div>
       {notice ? (
         <Alert>
-          <AlertDescription>{notice}</AlertDescription>
+          <AlertDescription role="status">{notice}</AlertDescription>
         </Alert>
       ) : null}
       {conflict ? (
@@ -322,12 +343,12 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
       ) : null}
       {violations.length > 0 ? (
         <div className="px-3 py-2">
-          <ValidationList violations={violations} />
+          <ValidationList violations={violations} nodes={state.nodes} onSelect={(id) => { setSelectedId(id); setInspectorTab("node"); setInspectorOpen(true); }} />
         </div>
       ) : null}
       {editable ? (
         <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-64 shrink-0 overflow-y-auto border-r p-3 lg:block">
+          <aside aria-label="Step library" className="hidden w-64 shrink-0 overflow-y-auto border-r bg-card p-4 xl:block">
             <NodePalette
               startDisabled={state.nodes.some((node) => node.type === "start")}
               onAdd={(type) =>
@@ -335,7 +356,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
                   current
                     ? addWorkflowNode(current, type, {
                         x: 40 + (current.nodes.length % 3) * 320,
-                        y: 40 + Math.floor(current.nodes.length / 3) * 200,
+                        y: 40 + Math.floor(current.nodes.length / 3) * 320,
                       })
                     : current,
                 )
@@ -343,7 +364,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
             />
           </aside>
           <div className="relative min-h-0 min-w-0 flex-1">
-            <div className="absolute top-2 right-2 z-10 flex gap-2 lg:hidden">
+            <div className="absolute top-16 right-2 z-10 flex gap-2 xl:hidden">
               <Button type="button" size="sm" variant="secondary" onClick={() => setPaletteOpen(true)}>
                 Nodes
               </Button>
@@ -354,8 +375,10 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
             <WorkflowCanvas
               nodes={state.nodes}
               edges={state.edges}
-              violations={violations}
-              onSelect={setSelectedId}
+              violations={liveViolations}
+              fields={state.fields}
+              selectedNodeId={selectedId}
+              onSelect={(id) => { setSelectedId(id); if (id) { setInspectorTab("node"); setInspectorOpen(true); } }}
               onMove={(positions, dragging) =>
                 setState((current) => {
                   if (!current) {
@@ -385,9 +408,9 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
               }}
             />
           </div>
-          <aside className="hidden w-80 shrink-0 overflow-y-auto border-l p-3 lg:block">{inspector}</aside>
+          <aside aria-label="Workflow settings" className="hidden w-80 shrink-0 overflow-y-auto border-l bg-card p-4 xl:block">{inspector}</aside>
           <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
-            <SheetContent side="left" className="w-72">
+            <SheetContent side="left" className="w-72 overflow-y-auto p-4">
               <SheetHeader>
                 <SheetTitle>Nodes</SheetTitle>
               </SheetHeader>
@@ -398,7 +421,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
                     current
                       ? addWorkflowNode(current, type, {
                           x: 40 + (current.nodes.length % 3) * 320,
-                          y: 40 + Math.floor(current.nodes.length / 3) * 200,
+                          y: 40 + Math.floor(current.nodes.length / 3) * 320,
                         })
                       : current,
                   );
@@ -407,8 +430,8 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
               />
             </SheetContent>
           </Sheet>
-          <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
-            <SheetContent side="right" className="w-80 overflow-y-auto">
+          <Sheet open={inspectorOpen && isCompact} onOpenChange={setInspectorOpen}>
+            <SheetContent side="right" className="w-80 overflow-y-auto p-4">
               <SheetHeader>
                 <SheetTitle>Properties</SheetTitle>
               </SheetHeader>
@@ -427,6 +450,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
               nodes={state.nodes}
               edges={state.edges}
               violations={[]}
+              fields={state.fields}
               readOnly
               onSelect={() => undefined}
               onMove={() => undefined}
@@ -438,6 +462,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
           </div>
         </div>
       )}
+      <footer className="flex shrink-0 flex-wrap justify-between gap-2 border-t bg-card px-4 py-2 text-[11px] text-muted-foreground"><span>{state.nodes.length} steps · {state.edges.length} connections · {liveViolations.length ? `${liveViolations.length} checks need attention` : "Ready to validate"}</span><span>Draft edits apply to new requests after publication · Ctrl/⌘ Z to undo</span></footer>
       <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

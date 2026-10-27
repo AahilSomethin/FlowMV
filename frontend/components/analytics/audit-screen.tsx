@@ -30,6 +30,14 @@ const eventTypes = [
   "instance_completed",
   "instance_rejected",
   "instance_failed",
+  "task_completed",
+  "task_reassigned",
+  "notification_queued",
+  "notification_sent",
+  "notification_failed",
+  "delay_started",
+  "delay_resumed",
+  "delay_cancelled",
 ] as const;
 
 export function AuditScreen() {
@@ -115,7 +123,6 @@ export function AuditScreen() {
             return;
           }
 
-          setReport(null);
           setError(describeApiError(caught, "Could not load the audit log.").description);
           setLoadedKey(requestKey);
         });
@@ -127,7 +134,9 @@ export function AuditScreen() {
     };
   }, [organizationId, from, to, workflow, eventType, actor, instance, page, requestKey]);
 
-  if (!organizationId || loadedKey !== requestKey || !report) {
+  const loading = loadedKey !== requestKey;
+
+  if (!organizationId || !loadedKey?.startsWith(`${organizationId}:`) || !report) {
     if (error && loadedKey === requestKey) {
       return <ErrorState title="Audit unavailable" description={error} />;
     }
@@ -145,6 +154,7 @@ export function AuditScreen() {
             type="button"
             variant="outline"
             className="h-10"
+            disabled={loading}
             onClick={() =>
               void downloadExport(organizationId, "audit", {
                 from,
@@ -210,7 +220,7 @@ export function AuditScreen() {
         />
       </div>
       <ScopeBanner scope={report.scope} label={report.scope_label} />
-      {report.items.length === 0 ? (
+      {loading ? <LoadingState label="Updating audit" /> : error ? <ErrorState title="Could not update results" description={error} /> : report.items.length === 0 ? (
         <EmptyState
           icon={<ScrollText />}
           title="No audit events"

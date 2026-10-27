@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnsavedChangesGuard } from "@/components/workflows/unsaved-changes-guard";
 import { ValidationList } from "@/components/workflows/validation-list";
 import { WorkflowListScreen } from "@/components/workflows/workflow-list-screen";
+import { canLeaveCurrentPage } from "@/lib/navigation";
 
 const auth = vi.hoisted(() => ({ org: "org-a" }));
 const api = vi.hoisted(() => vi.fn());
@@ -100,6 +101,18 @@ describe("workflow screens", () => {
     await userEvent.click(screen.getByRole("link", { name: "Leave" }));
 
     expect(confirm).toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+
+  it("protects workspace switches and sign-out from losing a draft", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const view = render(<UnsavedChangesGuard dirty />);
+    expect(canLeaveCurrentPage()).toBe(false);
+    confirm.mockReturnValue(true);
+    expect(canLeaveCurrentPage()).toBe(true);
+    view.unmount();
+    expect(canLeaveCurrentPage()).toBe(true);
+    expect(confirm).toHaveBeenCalledTimes(2);
     confirm.mockRestore();
   });
 

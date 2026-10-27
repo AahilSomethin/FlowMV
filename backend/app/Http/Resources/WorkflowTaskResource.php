@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\WorkflowTaskType;
 use App\Models\WorkflowTask;
 use App\Services\Workflows\Execution\NodeLabels;
 use Illuminate\Http\Request;
@@ -20,6 +21,11 @@ class WorkflowTaskResource extends JsonResource
         $instance = $this->relationLoaded('instance') ? $this->instance : null;
         $version = $instance?->relationLoaded('version') ? $instance->version : null;
         $labels = NodeLabels::forVersion($version);
+        $node = collect($version?->graph_definition['nodes'] ?? [])->firstWhere('id', $this->node_id);
+        $config = is_array($node['data'] ?? null) ? $node['data'] : [];
+        $instructions = $this->task_type === WorkflowTaskType::Assignment
+            ? ($config['instructions'] ?? null)
+            : ($config['description'] ?? null);
 
         return [
             'uuid' => $this->uuid,
@@ -28,6 +34,7 @@ class WorkflowTaskResource extends JsonResource
             'decision' => $this->decision?->value,
             'node_id' => $this->node_id,
             'node_label' => NodeLabels::text($labels, $this->node_id),
+            'instructions' => is_string($instructions) ? $instructions : null,
             'assigned_role' => $this->assigned_role,
             'assigned_at' => $this->assigned_at,
             'completed_at' => $this->completed_at,

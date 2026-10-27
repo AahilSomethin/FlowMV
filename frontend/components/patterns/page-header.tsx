@@ -13,8 +13,8 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-xl font-medium tracking-tight text-balance">{title}</h1>
-        {description ? <p className="text-sm leading-6 text-muted-foreground text-pretty">{description}</p> : null}
+        <h1 className="text-2xl font-semibold tracking-tight text-balance">{title}</h1>
+        {description ? <p className="max-w-2xl text-sm leading-6 text-muted-foreground text-pretty">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </div>

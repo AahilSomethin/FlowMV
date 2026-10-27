@@ -9,6 +9,7 @@ use App\Enums\WorkflowDelayStatus;
 use App\Enums\WorkflowInstanceStatus;
 use App\Jobs\ProcessNotificationOutbox;
 use App\Models\NotificationOutbox;
+use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\User;
 use App\Models\WorkflowDelay;
@@ -180,6 +181,28 @@ class Phase7AutomationNodesTest extends TestCase
         )->assertOk()->assertJsonPath('data.status', 'completed');
     }
 
+    public function test_assignment_instructions_come_from_the_pinned_version_after_a_draft_edit(): void
+    {
+        $organization = $this->signInMember(OrganizationRole::Admin);
+        $definition = AutomationGraphs::assignment(['instructions' => 'Check the equipment inventory.']);
+        $workflow = $this->publishWorkflow($organization, $definition);
+        $manager = $this->addMember($organization, OrganizationRole::Manager);
+        $employee = $this->addMember($organization, OrganizationRole::Employee);
+        $this->signIn($employee);
+        $task = $this->startInstance($organization, $workflow)->assertCreated()->json('data.tasks.0.uuid');
+        $this->signIn($this->admin($organization));
+        $definition['graph_definition']['nodes'][1]['data']['instructions'] = 'A newer draft instruction.';
+        $this->putJson("/api/v1/organizations/{$organization->uuid}/workflows/{$workflow}/draft", [
+            'revision' => 3,
+            ...$definition,
+        ])->assertOk();
+
+        $this->signIn($manager);
+        $this->getJson("/api/v1/organizations/{$organization->uuid}/tasks/{$task}")
+            ->assertOk()
+            ->assertJsonPath('data.instructions', 'Check the equipment inventory.');
+    }
+
     public function test_assignment_reassignment_is_admin_only_and_audited(): void
     {
         $organization = $this->signInMember(OrganizationRole::Admin);
@@ -290,7 +313,7 @@ class Phase7AutomationNodesTest extends TestCase
         $this->assertSame(0, WorkflowTask::query()->where('organization_id', $beta->id)->count());
     }
 
-    private function admin(\App\Models\Organization $organization): User
+    private function admin(Organization $organization): User
     {
         return User::query()->findOrFail($organization->created_by);
     }

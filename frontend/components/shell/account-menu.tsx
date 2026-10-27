@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { canLeaveCurrentPage } from "@/lib/navigation";
 import { LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,7 @@ export function AccountMenu() {
   }
 
   async function onLogout() {
+    if (!canLeaveCurrentPage()) return;
     setError(null);
     setPending(true);
 
@@ -86,12 +89,8 @@ export function AccountMenu() {
             ))}
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => {
-              router.push("/settings");
-            }}
-          >
-            Settings
+          <DropdownMenuItem asChild>
+            <Link href="/settings">Settings</Link>
           </DropdownMenuItem>
           <DropdownMenuItem disabled={pending} variant="destructive" onSelect={() => void onLogout()}>
             <LogOut aria-hidden="true" />

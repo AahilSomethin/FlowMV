@@ -37,8 +37,13 @@ export function isDirty(state: EditorState): boolean {
   return snapshotKey({ nodes: state.nodes, edges: state.edges }, { fields: state.fields }) !== state.savedKey;
 }
 
-export function markSaved(state: EditorState, graph: GraphDefinition, form: FormDefinition, revision: number): EditorState {
+export function markSaved(state: EditorState, graph: GraphDefinition, form: FormDefinition, revision: number, submittedKey?: string): EditorState {
   const next = createEditorState(graph, form, revision);
+
+  // A slow save must not replace edits made while the request was in flight.
+  if (submittedKey && snapshotKey({ nodes: state.nodes, edges: state.edges }, { fields: state.fields }) !== submittedKey) {
+    return { ...state, revision, savedKey: next.savedKey };
+  }
 
   return {
     ...next,
@@ -141,6 +146,20 @@ export function removeWorkflowEdge(state: EditorState, id: string): EditorState 
     edges: state.edges.filter((edge) => edge.id !== id),
     fields: state.fields,
   });
+}
+
+export function setWorkflowConnection(state: EditorState, source: string, sourceHandle: string, target: string): EditorState {
+  const existing = state.edges.find((edge) => edge.source === source && edge.source_handle === sourceHandle);
+  if (existing?.target === target) return state;
+  const edges = state.edges.filter((edge) => edge !== existing);
+  if (!target) {
+    const nodes = sourceHandle === "return" ? state.nodes.map((node) => node.id === source ? { ...node, data: { ...node.data, return_to_node_id: null } } : node) : state.nodes;
+    return commit(state, { nodes, edges, fields: state.fields });
+  }
+  if (source === target) return state;
+  const connected = connectNodes({ ...state, edges }, { source, target, sourceHandle });
+  if (connected.edges.length === edges.length) return state;
+  return commit(state, { nodes: connected.nodes, edges: connected.edges, fields: state.fields });
 }
 
 export function replaceFields(state: EditorState, fields: FormField[]): EditorState {

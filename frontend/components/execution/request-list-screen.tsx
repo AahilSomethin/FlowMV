@@ -22,6 +22,8 @@ const statuses: Array<{ value: "all" | InstanceStatus; label: string }> = [
   { value: "running", label: "In progress" },
   { value: "awaiting_approval", label: "Awaiting approval" },
   { value: "awaiting_revision", label: "Needs revision" },
+  { value: "awaiting_assignment", label: "Awaiting assignment" },
+  { value: "awaiting_delay", label: "Waiting" },
   { value: "completed", label: "Completed" },
   { value: "rejected", label: "Rejected" },
   { value: "failed", label: "Failed" },
@@ -82,19 +84,18 @@ export function RequestListScreen() {
     };
   }, [organizationId, page, search, status, workflow]);
 
-  if (!organizationId || loadedKey !== requestKey) {
+  const loading = loadedKey !== requestKey;
+
+  if (!organizationId || !loadedKey?.startsWith(`${organizationId}:`)) {
     return <LoadingState label="Loading requests" />;
   }
 
-  if (error) {
-    return <ErrorState title="Requests unavailable" description={error} />;
-  }
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Requests"
-        description="Requests started in this workspace. FlowMV keeps each one on the workflow version that was published at submission."
+        description="Start a workplace request and follow its next steps. You’ll see the requests you’re authorized to access."
         actions={
           <Button className="h-10" asChild>
             <Link href="/requests/new">New request</Link>
@@ -131,7 +132,7 @@ export function RequestListScreen() {
           </SelectContent>
         </Select>
       </div>
-      {items.length === 0 ? (
+      {loading ? <LoadingState label="Updating requests" /> : error ? <ErrorState title="Requests unavailable" description={error} /> : items.length === 0 ? (
         <EmptyState
           icon={<Inbox />}
           title="No requests"

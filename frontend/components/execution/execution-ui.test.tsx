@@ -3,6 +3,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RequestListScreen } from "@/components/execution/request-list-screen";
+import { RequestCreateScreen } from "@/components/execution/request-create-screen";
+import { TaskInboxScreen } from "@/components/execution/task-inbox-screen";
+import { DynamicForm } from "@/components/execution/dynamic-form";
 import { TaskDetail } from "@/components/execution/task-detail";
 import { ApiError } from "@/lib/api";
 import type { WorkflowTask } from "@/lib/execution";
@@ -86,6 +89,52 @@ describe("execution screens", () => {
   beforeEach(() => {
     auth.org = "org-a";
     api.mockReset();
+  });
+
+  it("keeps task search focused while fetching each query", async () => {
+    api.mockResolvedValue({ items: [], total: 0, last_page: 1, current_page: 1 });
+    render(<TaskInboxScreen />);
+    const search = await screen.findByRole("textbox", { name: "Search tasks" });
+    await userEvent.type(search, "purchase");
+    expect(search).toHaveFocus();
+    expect(search).toHaveValue("purchase");
+    expect(await screen.findByText("No open tasks")).toBeInTheDocument();
+    expect(api).toHaveBeenLastCalledWith(expect.stringContaining("search=purchase"));
+  });
+
+  it("discovers services beyond the first page and recovers from a form load error", async () => {
+    const service = { uuid: "service", name: "Purchase equipment", description: "Request new equipment", status: "published" };
+    api.mockImplementation((url: string) => {
+      if (url.endsWith("/workflows/service")) return Promise.reject(new ApiError("Service is temporarily unavailable", 503));
+      return Promise.resolve({ items: [service], total: 21, last_page: 2, current_page: url.includes("page=2") ? 2 : 1 });
+    });
+    render(<RequestCreateScreen />);
+    await screen.findByRole("heading", { name: "Purchase equipment" });
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("heading", { name: "Purchase equipment" });
+    expect(api).toHaveBeenCalledWith(expect.stringContaining("page=2"));
+    await userEvent.click(screen.getByRole("button", { name: "Start request" }));
+    expect(await screen.findByRole("heading", { name: "Form unavailable" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading form")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Choose another service" }));
+    expect(await screen.findByRole("textbox", { name: "Search services" })).toBeInTheDocument();
+  });
+
+  it("validates answers before review and submits only after confirmation", async () => {
+    const submit = vi.fn().mockResolvedValue(undefined);
+    render(<DynamicForm definition={task.instance!.form_definition!} submitLabel="Submit request" confirmTitle="Submit this request?" onSubmit={submit} />);
+    await userEvent.click(screen.getByRole("button", { name: "Submit request" }));
+    expect(await screen.findByText("Check your answers")).toBeInTheDocument();
+    expect(submit).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByRole("textbox", { name: /Note/ }), "Need laptops");
+    await userEvent.click(screen.getByRole("button", { name: "Submit request" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("Need laptops");
+    expect(submit).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByRole("textbox", { name: /Note/ })).toHaveValue("Need laptops");
+    await userEvent.click(screen.getByRole("button", { name: "Submit request" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm submission" }));
+    expect(submit).toHaveBeenCalledWith({ note: "Need laptops" });
   });
 
   it("drops the previous workspace when the organization changes", async () => {

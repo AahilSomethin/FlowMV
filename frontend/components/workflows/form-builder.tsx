@@ -53,16 +53,16 @@ export function FormBuilder({ fields, onChange }: { fields: FormField[]; onChang
     <div className="flex flex-col gap-3">
       <div>
         <h2 className="text-sm font-medium">Submission form</h2>
-        <p className="text-xs leading-5 text-muted-foreground">These fields are stored with the workflow. Submissions are not collected yet.</p>
+        <p className="text-xs leading-5 text-muted-foreground">Choose the information people provide when starting a request. Use clear labels and help text.</p>
       </div>
-      {fields.length === 0 ? <p className="text-sm text-muted-foreground">No fields yet.</p> : null}
+      {fields.length === 0 ? <p className="text-sm text-muted-foreground">No fields yet. Add the questions your process needs.</p> : null}
       <ul className="flex flex-col gap-2">
         {fields.map((field) => (
           <li key={field.id} className="flex items-start justify-between gap-2 rounded-lg bg-muted/50 px-2 py-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{field.label}</p>
               <p className="truncate text-xs text-muted-foreground">
-                {field.id} · {field.type}
+                {{ text: "Short answer", textarea: "Long answer", number: "Number", date: "Date", select: "Dropdown", checkbox: "Checkbox", file: "Attachment (unavailable)" }[field.type]}
                 {field.required ? " · required" : ""}
               </p>
             </div>
@@ -190,11 +190,11 @@ function FieldDialog({
             />
             <FieldError errors={[form.formState.errors.label]} />
           </Field>
-          <Field data-invalid={Boolean(form.formState.errors.id) || undefined}>
+          <details open={form.formState.errors.id ? true : undefined} className="rounded-lg border p-3"><summary className="cursor-pointer text-xs font-medium text-muted-foreground">Advanced: field identifier</summary><p className="my-2 text-xs leading-5 text-muted-foreground">Generated from the label. Conditions and stored answers use this identifier; change it carefully.</p><Field data-invalid={Boolean(form.formState.errors.id) || undefined}>
             <FieldLabel htmlFor="field-id">Identifier</FieldLabel>
             <Input id="field-id" {...form.register("id")} />
             <FieldError errors={[form.formState.errors.id]} />
-          </Field>
+          </Field></details>
           <Field>
             <FieldLabel htmlFor="field-type">Type</FieldLabel>
             <Select value={type} onValueChange={(value) => form.setValue("type", value as FieldType)}>
@@ -204,7 +204,7 @@ function FieldDialog({
               <SelectContent>
                 {FIELD_TYPES.map((item) => (
                   <SelectItem key={item} value={item}>
-                    {item}
+                    {{ text: "Short answer", textarea: "Long answer", number: "Number", date: "Date", select: "Dropdown", checkbox: "Checkbox", file: "Attachment (unavailable)" }[item]}
                   </SelectItem>
                 ))}
               </SelectContent>

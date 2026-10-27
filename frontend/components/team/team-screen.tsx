@@ -198,7 +198,7 @@ export function TeamScreen() {
         <>
           <PageHeader
             title="Team"
-            description={`${current.name}. Your role is loaded from the server for this workspace.`}
+            description={`Manage the people and responsibilities in ${current.name}.`}
             actions={
               isAdmin ? (
                 <InviteMemberDialog
@@ -217,6 +217,7 @@ export function TeamScreen() {
               <AlertDescription>You can view this team. Only admins can invite people or change roles.</AlertDescription>
             </Alert>
           ) : null}
+          <div className="grid gap-3 rounded-xl border bg-card p-4 text-xs leading-5 sm:grid-cols-3" aria-label="Role permissions"><p><strong className="block text-foreground">Administrator</strong><span className="text-muted-foreground">Manage members, publish workflows, and view workspace requests.</span></p><p><strong className="block text-foreground">Manager</strong><span className="text-muted-foreground">Design workflow drafts and act on eligible tasks.</span></p><p><strong className="block text-foreground">Employee</strong><span className="text-muted-foreground">Submit requests and complete tasks assigned to you.</span></p></div>
           <Card>
             <CardHeader>
               <CardTitle>Members</CardTitle>

@@ -15,6 +15,8 @@ import { workspaceNavItem } from "@/lib/navigation";
 export function AppBreadcrumbs() {
   const pathname = usePathname();
   const current = workspaceNavItem(pathname);
+  const nested = current && pathname !== current.href;
+  const detailLabel = pathname === "/requests/new" ? "New request" : pathname.endsWith("/edit") ? "Workflow studio" : pathname === "/analytics/audit" ? "Audit" : current?.href === "/tasks" ? "Task details" : current?.href === "/requests" ? "Request details" : "Workflow details";
 
   if (!current || current.href === "/dashboard") {
     return (
@@ -38,8 +40,9 @@ export function AppBreadcrumbs() {
         </BreadcrumbItem>
         <BreadcrumbSeparator className="hidden sm:block" />
         <BreadcrumbItem className="min-w-0">
-          <BreadcrumbPage className="truncate">{current.label}</BreadcrumbPage>
+          {nested ? <BreadcrumbLink asChild><Link href={current.href}>{current.label}</Link></BreadcrumbLink> : <BreadcrumbPage className="truncate">{current.label}</BreadcrumbPage>}
         </BreadcrumbItem>
+        {nested ? <><BreadcrumbSeparator /><BreadcrumbItem className="min-w-0"><BreadcrumbPage className="truncate">{detailLabel}</BreadcrumbPage></BreadcrumbItem></> : null}
       </BreadcrumbList>
     </Breadcrumb>
   );

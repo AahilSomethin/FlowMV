@@ -1,154 +1,67 @@
 "use client";
 
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import { cn } from "cn";
+import { AlertTriangle, Check, CircleDashed } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { NodeType, WorkflowNodeData } from "@/lib/workflows/types";
-import { NODE_COPY } from "@/lib/workflows/types";
+import { NODE_PRESENTATION, nodeSummary } from "@/lib/workflows/node-registry";
 
-export type FlowNodeData = WorkflowNodeData & { invalid?: boolean };
+export type FlowNodeData = WorkflowNodeData & { invalid?: boolean; warning?: string; summary?: string; disconnected?: boolean };
 export type FlowNode = Node<FlowNodeData, NodeType>;
 
 export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
   const kind = (type ?? "start") as NodeType;
+  const presentation = NODE_PRESENTATION[kind];
+  const Icon = presentation.icon;
+  const outcomes = Object.entries(presentation.outcomes);
+  const warning = data.warning || (data.disconnected ? "Connect this step to the workflow" : "");
+  const StatusIcon = warning || data.invalid ? AlertTriangle : !data.label.trim() ? CircleDashed : Check;
 
   return (
     <div
       data-node-type={kind}
       role="group"
       className={cn(
-        "workflow-node relative w-56 rounded-xl bg-card px-3 py-2 text-card-foreground shadow-sm ring-1 ring-[var(--node-accent)]",
-        selected && "ring-2",
-        data.invalid && "ring-destructive",
+        "workflow-node relative w-64 rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-shadow",
+        selected && "border-primary ring-2 ring-primary/25 shadow-md",
+        (data.invalid || warning) && "border-status-warning",
       )}
-      aria-label={`${NODE_COPY[kind].title}: ${data.label || "Untitled"}`}
+      aria-label={`${presentation.title}: ${data.label || "Untitled"}${warning ? `. ${warning}` : ""}`}
     >
-      {kind !== "start" ? (
-        <Handle type="target" position={Position.Top} id="in" className="size-2.5 border-2 border-background bg-[var(--node-accent)]" aria-label="Input" />
+      {kind !== "start" ? <Handle type="target" position={Position.Top} id="in" className="!size-3 !border-2 !border-card !bg-[var(--node-accent)]" aria-label={presentation.inputLabel} /> : null}
+      <div className="flex items-start gap-3 p-4">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_oklch,var(--node-accent)_12%,transparent)] text-[var(--node-accent)]">
+          <Icon className="size-[18px]" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--node-accent)]">{presentation.title}</p>
+          <p className="mt-0.5 break-words text-sm font-semibold leading-5">{data.label || "Untitled step"}</p>
+        </div>
+        <StatusIcon className={cn("size-3.5 shrink-0", warning || data.invalid ? "text-status-warning" : "text-muted-foreground")} aria-label={warning || (data.invalid ? "Needs attention" : "Configured")} />
+      </div>
+      <div className="px-4 pb-4">
+        <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{data.description || presentation.description}</p>
+        <p className="mt-2 break-words rounded-md bg-muted/60 px-2 py-1.5 text-xs leading-5">{data.summary ?? nodeSummary(kind, data)}</p>
+        {warning ? <p className="mt-2 text-xs leading-5 text-status-warning">{warning}</p> : null}
+      </div>
+      {outcomes.length ? (
+        <div className="flex min-h-8 border-t bg-muted/30 rounded-b-xl">
+          {outcomes.map(([handle, label]) => (
+            <div key={handle} className="relative flex-1 py-2 text-center text-[10px] font-medium text-muted-foreground">
+              {label}
+              <Handle type="source" position={Position.Bottom} id={handle}
+                style={{ left: "50%" }}
+                className="!size-3 !border-2 !border-card !bg-[var(--node-accent)]"
+                aria-label={label} />
+            </div>
+          ))}
+        </div>
       ) : null}
-      <p className="text-xs font-medium text-[var(--node-accent)]">{NODE_COPY[kind].title}</p>
-      <p className="truncate text-sm font-medium">{data.label || "Untitled"}</p>
-      {kind === "approval" ? (
-        <p className="truncate text-xs text-muted-foreground">{data.assignee_roles?.join(", ") || "No role selected"}</p>
-      ) : null}
-      {kind === "end" ? (
-        <p className="text-xs text-muted-foreground">{data.result === "rejected" ? "Rejected" : "Completed"}</p>
-      ) : null}
-      {kind === "revision" ? (
-        <p className="text-xs text-muted-foreground">{data.max_returns ?? 0} attempts, then rejected</p>
-      ) : null}
-      {kind === "notification" ? (
-        <p className="truncate text-xs text-muted-foreground">{formatChannels(data.channels)}</p>
-      ) : null}
-      {kind === "assignment" ? (
-        <p className="truncate text-xs text-muted-foreground">{formatAssignment(data)}</p>
-      ) : null}
-      {kind === "delay" ? <p className="truncate text-xs text-muted-foreground">{formatDelay(data)}</p> : null}
-      <Outcome
-        handle="out"
-        label="Next"
-        hidden={!["start", "notification", "assignment", "delay"].includes(kind)}
-        position={Position.Bottom}
-      />
-      <Outcome handle="approved" label="Approved" hidden={kind !== "approval"} position={Position.Right} />
-      <Outcome handle="rejected" label="Rejected" hidden={kind !== "approval"} position={Position.Left} />
-      <Outcome handle="true" label="True" hidden={kind !== "condition"} position={Position.Right} />
-      <Outcome handle="false" label="False" hidden={kind !== "condition"} position={Position.Left} />
-      <Outcome handle="return" label="Return" hidden={kind !== "revision"} position={Position.Left} />
-      <Outcome handle="exhausted" label="Exhausted" hidden={kind !== "revision"} position={Position.Right} />
     </div>
   );
 }
 
-function Outcome({
-  handle,
-  label,
-  hidden,
-  position,
-}: {
-  handle: string;
-  label: string;
-  hidden: boolean;
-  position: Position;
-}) {
-  if (hidden) {
-    return null;
-  }
-
-  const side = position === Position.Left ? "left-2" : position === Position.Right ? "right-2" : "left-1/2 -translate-x-1/2";
-
-  return (
-    <>
-      <span className={cn("pointer-events-none absolute bottom-1 text-[10px] font-medium text-muted-foreground", side)}>{label}</span>
-      <Handle
-        type="source"
-        position={position}
-        id={handle}
-        className="size-2.5 border-2 border-background bg-[var(--node-accent)]"
-        aria-label={label}
-      />
-    </>
-  );
-}
-
 export const workflowNodeTypes = {
-  start: WorkflowNode,
-  approval: WorkflowNode,
-  condition: WorkflowNode,
-  revision: WorkflowNode,
-  end: WorkflowNode,
-  notification: WorkflowNode,
-  assignment: WorkflowNode,
-  delay: WorkflowNode,
+  start: WorkflowNode, approval: WorkflowNode, condition: WorkflowNode, revision: WorkflowNode,
+  end: WorkflowNode, notification: WorkflowNode, assignment: WorkflowNode, delay: WorkflowNode,
 };
-
-function formatChannels(channels: WorkflowNodeData["channels"]): string {
-  if (!channels?.length) {
-    return "No channel selected";
-  }
-
-  return channels.map((channel) => (channel === "in_app" ? "In-app" : "Email")).join(", ");
-}
-
-function formatAssignment(data: WorkflowNodeData): string {
-  const mode = data.assignee_mode ?? "role";
-
-  if (mode === "member") {
-    return data.assignee_user_id != null ? `Member #${data.assignee_user_id}` : "No member selected";
-  }
-
-  return data.assignee_roles?.join(", ") || "No role selected";
-}
-
-function formatDelay(data: WorkflowNodeData): string {
-  const mode = data.resume_mode ?? "duration";
-
-  if (mode === "until") {
-    return data.resume_at ? `Until ${data.resume_at}` : "No resume time";
-  }
-
-  const seconds = data.duration_seconds;
-
-  if (seconds == null) {
-    return "No duration";
-  }
-
-  if (seconds % 86400 === 0) {
-    const days = seconds / 86400;
-
-    return `${days} day${days === 1 ? "" : "s"}`;
-  }
-
-  if (seconds % 3600 === 0) {
-    const hours = seconds / 3600;
-
-    return `${hours} hour${hours === 1 ? "" : "s"}`;
-  }
-
-  if (seconds % 60 === 0) {
-    const minutes = seconds / 60;
-
-    return `${minutes} min`;
-  }
-
-  return `${seconds}s`;
-}

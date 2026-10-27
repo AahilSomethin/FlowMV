@@ -30,6 +30,10 @@ import { WORKSPACE_NAV, type WorkspaceHref } from "@/lib/navigation";
 import { useAuth } from "@/lib/auth";
 import { roleLabel } from "@/lib/organizations";
 
+const descriptions: Record<WorkspaceHref, string> = {
+  "/dashboard": "Your workspace at a glance", "/requests": "Start and track submissions", "/tasks": "Things requiring your action", "/workflows": "Design and manage processes", "/analytics": "Understand performance", "/team": "People and roles", "/settings": "Account and appearance",
+};
+
 const icons: Record<WorkspaceHref, typeof LayoutDashboard> = {
   "/dashboard": LayoutDashboard,
   "/tasks": ListTodo,
@@ -52,11 +56,11 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild tooltip="FlowMV">
-              <Link href="/dashboard" onClick={() => setOpenMobile(false)}>
+              <Link href="/dashboard" aria-label="FlowMV overview" onClick={() => setOpenMobile(false)}>
                 <span className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Workflow className="size-4" aria-hidden="true" />
                 </span>
-                <span className="truncate font-medium group-data-[collapsible=icon]:hidden">FlowMV</span>
+                <span className="group-data-[collapsible=icon]:hidden"><span className="block truncate text-base font-semibold tracking-tight">FlowMV</span><span className="block text-[10px] text-muted-foreground">Work, in flow.</span></span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -64,7 +68,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel>Your workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {WORKSPACE_NAV.map((item) => {
@@ -73,9 +77,10 @@ export function AppSidebar() {
 
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
+                    <SidebarMenuButton asChild isActive={active} tooltip={descriptions[item.href]}>
                       <Link
                         href={item.href}
+                        title={descriptions[item.href]}
                         aria-current={active ? "page" : undefined}
                         onClick={() => setOpenMobile(false)}
                       >

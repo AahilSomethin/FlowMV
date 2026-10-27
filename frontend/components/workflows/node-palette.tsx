@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { nodeDescription, nodeTitle, paletteCategories } from "@/lib/workflows/node-registry";
+import { NODE_PRESENTATION, nodeDescription, nodeTitle, paletteCategories } from "@/lib/workflows/node-registry";
 import type { NodeType } from "@/lib/workflows/types";
 
 export function NodePalette({
@@ -34,8 +34,8 @@ export function NodePalette({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <h2 className="text-sm font-medium">Nodes</h2>
-        <p className="text-xs leading-5 text-muted-foreground">Drag a node onto the canvas, or add it with the button.</p>
+        <h2 className="text-sm font-semibold">Build your workflow</h2>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">Add steps, then connect their outcomes. Click a step to configure it.</p>
       </div>
       <Input
         aria-label="Search nodes"
@@ -51,25 +51,27 @@ export function NodePalette({
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{category.label}</h3>
             {category.types.map((type) => {
               const disabled = type === "start" && startDisabled;
+              const Icon = NODE_PRESENTATION[type].icon;
 
               return (
-                <div key={type} className="rounded-lg bg-card p-2 ring-1 ring-foreground/10" data-node-type={type}>
+                <div key={type} className="rounded-xl border bg-card p-1 transition-colors hover:border-primary/40" data-node-type={type}>
                   <button
                     type="button"
                     draggable={!disabled}
                     disabled={disabled}
+                    title={disabled ? "A workflow has one Start step" : `Add ${nodeTitle(type)}`}
                     onDragStart={(event) => {
                       event.dataTransfer.setData("application/flowmv-node", type);
                       event.dataTransfer.effectAllowed = "move";
                     }}
                     onClick={() => onAdd(type)}
-                    className="flex w-full flex-col gap-1 rounded-md px-1 py-1 text-left outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex w-full flex-col gap-1 rounded-lg p-2 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span
                       className="text-sm font-medium text-[var(--node-accent)]"
                       style={{ ["--node-accent" as string]: `var(--node-${type})` }}
                     >
-                      {nodeTitle(type)}
+                      <Icon className="mr-2 inline size-4" aria-hidden="true" />{nodeTitle(type)}
                     </span>
                     <span className="text-xs leading-5 text-muted-foreground">{nodeDescription(type)}</span>
                   </button>

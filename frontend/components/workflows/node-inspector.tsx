@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import { MousePointer2, SlidersHorizontal } from "lucide-react";
+import { NODE_PRESENTATION, nodeSummary } from "@/lib/workflows/node-registry";
 import type { Member } from "@/lib/organizations";
 import type {
   AssigneeRole,
@@ -14,6 +16,7 @@ import type {
   NotificationChannel,
   WorkflowNode,
   WorkflowNodeData,
+  WorkflowViolation,
 } from "@/lib/workflows/types";
 import { OPERATORS, VALUELESS_OPERATORS } from "@/lib/workflows/types";
 
@@ -27,6 +30,7 @@ export function NodeInspector({
   nodes,
   fields,
   organizationId,
+  violations = [],
   onChange,
   onRevisionTarget,
 }: {
@@ -34,14 +38,15 @@ export function NodeInspector({
   nodes: WorkflowNode[];
   fields: FormField[];
   organizationId?: string | null;
+  violations?: WorkflowViolation[];
   onChange: (patch: Partial<WorkflowNodeData>) => void;
   onRevisionTarget: (approvalId: string) => void;
 }) {
-  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [memberResult, setMemberResult] = useState<{ organizationId: string; items: MemberOption[] } | null>(null);
+  const members = memberResult && memberResult.organizationId === organizationId ? memberResult.items : [];
 
   useEffect(() => {
     if (!organizationId || node?.type !== "assignment") {
-      setMembers([]);
       return;
     }
 
@@ -50,12 +55,12 @@ export function NodeInspector({
     void api<MemberOption[]>(`/api/v1/organizations/${organizationId}/members`)
       .then((result) => {
         if (active) {
-          setMembers(result);
+          setMemberResult({ organizationId: organizationId!, items: result });
         }
       })
       .catch(() => {
         if (active) {
-          setMembers([]);
+          setMemberResult({ organizationId: organizationId!, items: [] });
         }
       });
 
@@ -64,16 +69,18 @@ export function NodeInspector({
     };
   }, [organizationId, node?.type]);
   if (!node) {
-    return <p className="text-sm text-muted-foreground">Select a node to edit its label, description, and outcome settings.</p>;
+    return <div className="flex flex-col items-center gap-3 py-12 text-center"><MousePointer2 className="size-8 text-primary/60" aria-hidden="true" /><h2 className="text-sm font-semibold">Make each step your own</h2><p className="text-sm leading-6 text-muted-foreground">Select a step to configure it. Start with your request form, then add the decisions and tasks it needs.</p><p className="text-xs leading-5 text-muted-foreground">Save your draft at any time. Check the workflow before publishing it.</p></div>;
   }
 
   const approvals = nodes.filter((item) => item.type === "approval");
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="border-b pb-4"><h2 className="flex items-center gap-2 text-sm font-semibold"><SlidersHorizontal className="size-4 text-primary" aria-hidden="true" />{NODE_PRESENTATION[node.type].title} settings</h2><p className="mt-2 text-xs leading-5 text-muted-foreground">{NODE_PRESENTATION[node.type].description}</p><p className="mt-2 rounded-lg bg-muted p-2 text-xs leading-5">{nodeSummary(node.type, node.data, fields)}</p></div>
+      {violations.length ? <div className="rounded-lg border border-status-warning/30 bg-status-warning/5 p-3" role="status"><p className="text-xs font-semibold text-status-warning">Finish this step</p><ul className="mt-1 space-y-1 text-xs leading-5">{violations.map((item, index) => <li key={`${item.code}-${index}`}>{item.message}</li>)}</ul></div> : null}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="node-label">Label</Label>
-        <Input id="node-label" value={node.data.label} maxLength={120} onChange={(event) => onChange({ label: event.target.value })} />
+        <Label htmlFor="node-label">Step name</Label>
+        <Input id="node-label" placeholder="e.g. Manager review" value={node.data.label} maxLength={120} onChange={(event) => onChange({ label: event.target.value })} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="node-description">Description</Label>
@@ -119,7 +126,7 @@ export function NodeInspector({
         <div className="flex flex-col gap-3">
           <p className="text-sm leading-6 text-muted-foreground">
             Rejection enters this step. The original submitter corrects the request, then it returns to the selected approval.
-            Attempts are counted per submission. After the limit, the exhausted path must end at a rejected End. This is stored for later execution and is not run here.
+            After the revision limit is reached, connect the Limit reached outcome to an End step with a Rejected result.
           </p>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="max-returns">Maximum attempts</Label>
@@ -133,9 +140,9 @@ export function NodeInspector({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Return to approval</Label>
+            <Label htmlFor="revision-approval">Return to approval</Label>
             <Select value={node.data.return_to_node_id ?? ""} onValueChange={onRevisionTarget}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="revision-approval" className="w-full">
                 <SelectValue placeholder="Choose an approval" />
               </SelectTrigger>
               <SelectContent>
@@ -151,9 +158,9 @@ export function NodeInspector({
       ) : null}
       {node.type === "end" ? (
         <div className="flex flex-col gap-1.5">
-          <Label>Terminal result</Label>
+          <Label htmlFor="end-outcome">Request outcome</Label>
           <Select value={node.data.result ?? ""} onValueChange={(value) => onChange({ result: value as "completed" | "rejected" })}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger id="end-outcome" className="w-full">
               <SelectValue placeholder="Choose a result" />
             </SelectTrigger>
             <SelectContent>
@@ -169,7 +176,7 @@ export function NodeInspector({
       {node.type === "assignment" ? (
         <AssignmentFields node={node} members={members} onChange={onChange} />
       ) : null}
-      {node.type === "delay" ? <DelayFields node={node} onChange={onChange} /> : null}
+      {node.type === "delay" ? <DelayFields key={node.id} node={node} onChange={onChange} /> : null}
     </div>
   );
 }
@@ -328,9 +335,9 @@ function AssignmentFields({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <Label>Assignee</Label>
+        <Label htmlFor="assignment-mode">Assignee</Label>
         <Select value={mode} onValueChange={(value) => onChange({ assignee_mode: value as "role" | "member" })}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger id="assignment-mode" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -370,12 +377,12 @@ function AssignmentFields({
         </fieldset>
       ) : memberOptions.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <Label>Organization member</Label>
+          <Label htmlFor="assignment-member">Organization member</Label>
           <Select
             value={node.data.assignee_user_id != null ? String(node.data.assignee_user_id) : ""}
             onValueChange={(value) => onChange({ assignee_user_id: value === "" ? null : Number(value) })}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger id="assignment-member" className="w-full">
               <SelectValue placeholder="Choose a member" />
             </SelectTrigger>
             <SelectContent>
@@ -389,17 +396,7 @@ function AssignmentFields({
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="assignee-user-id">Member user ID</Label>
-          <Input
-            id="assignee-user-id"
-            type="number"
-            min={1}
-            value={node.data.assignee_user_id ?? ""}
-            onChange={(event) =>
-              onChange({ assignee_user_id: event.target.value === "" ? null : Number(event.target.value) })
-            }
-          />
-          <p className="text-xs leading-5 text-muted-foreground">Use the numeric user id for the selected member.</p>
+          <p className="text-sm text-muted-foreground" role="status">No members are available to select. Choose a role instead, or reopen this step to try loading members again.</p>
         </div>
       )}
       <label className="flex items-center gap-2 text-sm">
@@ -432,13 +429,17 @@ function DelayFields({
   onChange: (patch: Partial<WorkflowNodeData>) => void;
 }) {
   const mode = node.data.resume_mode ?? "duration";
+  const [unit, setUnit] = useState(() => {
+    const seconds = node.data.duration_seconds ?? 0;
+    return seconds && seconds % 86400 === 0 ? 86400 : seconds && seconds % 3600 === 0 ? 3600 : seconds && seconds % 60 === 0 ? 60 : 1;
+  });
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <Label>Resume</Label>
+        <Label htmlFor="delay-mode">Resume</Label>
         <Select value={mode} onValueChange={(value) => onChange({ resume_mode: value as "duration" | "until" })}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger id="delay-mode" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -449,15 +450,16 @@ function DelayFields({
       </div>
       {mode === "duration" ? (
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="delay-seconds">Duration (seconds)</Label>
-          <Input
+          <Label htmlFor="delay-seconds">Waiting period</Label>
+          <div className="flex gap-2"><Input
             id="delay-seconds"
             type="number"
-            min={1}
-            max={2_592_000}
-            value={node.data.duration_seconds ?? ""}
-            onChange={(event) => onChange({ duration_seconds: event.target.value === "" ? null : Number(event.target.value) })}
-          />
+            min={1 / unit}
+            max={2_592_000 / unit}
+            step="any"
+            value={node.data.duration_seconds == null ? "" : node.data.duration_seconds / unit}
+            onChange={(event) => onChange({ duration_seconds: event.target.value === "" ? null : Math.round(Number(event.target.value) * unit) })}
+          /><Select value={String(unit)} onValueChange={(value) => setUnit(Number(value))}><SelectTrigger aria-label="Waiting period unit" className="w-32"><SelectValue /></SelectTrigger><SelectContent>{[[1, "Seconds"], [60, "Minutes"], [3600, "Hours"], [86400, "Days"]].map(([value, label]) => <SelectItem key={value} value={String(value)}>{label}</SelectItem>)}</SelectContent></Select></div>
           <p className="text-xs leading-5 text-muted-foreground">Between 1 second and 30 days.</p>
         </div>
       ) : (
@@ -525,9 +527,9 @@ function ConditionFields({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <Label>Match</Label>
+        <Label htmlFor="condition-match">Match</Label>
         <Select value={node.data.match ?? "all"} onValueChange={(value) => onChange({ match: value as "all" | "any" })}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger id="condition-match" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -544,7 +546,7 @@ function ConditionFields({
         return (
           <div key={rule.id} className="flex flex-col gap-2 rounded-lg bg-muted/60 p-2">
             <Select value={rule.field_id} onValueChange={(value) => updateRule(rule.id, { field_id: value, operator: "equals", value: null })}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Answer to check" className="w-full">
                 <SelectValue placeholder="Field" />
               </SelectTrigger>
               <SelectContent>
@@ -556,7 +558,7 @@ function ConditionFields({
               </SelectContent>
             </Select>
             <Select value={rule.operator} onValueChange={(value) => updateRule(rule.id, { operator: value as ConditionOperator, value: null })}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Comparison" className="w-full">
                 <SelectValue placeholder="Operator" />
               </SelectTrigger>
               <SelectContent>

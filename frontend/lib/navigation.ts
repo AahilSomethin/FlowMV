@@ -10,6 +10,10 @@ export const WORKSPACE_NAV = [
 
 export type WorkspaceHref = (typeof WORKSPACE_NAV)[number]["href"];
 
+export function canLeaveCurrentPage(): boolean {
+  return window.dispatchEvent(new Event("flowmv:before-navigate", { cancelable: true }));
+}
+
 const STATIC_PATHS = new Set<string>([
   ...WORKSPACE_NAV.map((item) => item.href),
   "/onboarding",

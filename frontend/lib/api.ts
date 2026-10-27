@@ -83,6 +83,7 @@ async function ensureCsrfCookie(): Promise<void> {
   try {
     response = await fetch(`${apiOrigin()}/sanctum/csrf-cookie`, {
       credentials: "include",
+      signal: AbortSignal.timeout(30_000),
       headers: { Accept: "application/json" },
     });
   } catch {
@@ -126,6 +127,7 @@ async function send<T>(path: string, init: ApiInit): Promise<T> {
   try {
     response = await fetch(`${apiOrigin()}${path}`, {
       ...requestInit,
+      signal: requestInit.signal ? AbortSignal.any([requestInit.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
       method,
       headers,
       credentials: "include",
@@ -138,7 +140,10 @@ async function send<T>(path: string, init: ApiInit): Promise<T> {
     return undefined as T;
   }
 
-  const body = (await response.json().catch(() => ({}))) as ErrorBody & { data?: T };
+  const body = (await response.json().catch(() => {
+    if (response.ok) throw new ApiError("The API response could not be read. Refresh and try again.", 0);
+    return {};
+  })) as ErrorBody & { data?: T };
 
   if (response.status === 401) {
     notifyUnauthorized();

@@ -14,6 +14,7 @@ import { useWorkspaceTransition } from "@/components/shell/workspace-transition"
 import { api, ApiError, type User } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { roleLabel } from "@/lib/organizations";
+import { canLeaveCurrentPage } from "@/lib/navigation";
 
 export function WorkspaceSwitcher() {
   const { user, applySession } = useAuth();
@@ -29,6 +30,8 @@ export function WorkspaceSwitcher() {
     if (pending || uuid === current?.uuid) {
       return;
     }
+
+    if (!canLeaveCurrentPage()) return;
 
     setError(null);
 
