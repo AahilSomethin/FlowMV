@@ -262,6 +262,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
       </TabsList>
       <TabsContent value="node">
         <NodeInspector
+          workflowId={workflowId}
           node={selected}
           nodes={state.nodes}
           fields={state.fields}

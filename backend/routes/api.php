@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AcceptInvitationController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AuditController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ConnectionController;
 use App\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\MembershipController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Api\V1\WorkflowVersionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    Route::post('integration-webhooks/local-mock/{connection}', [ConnectionController::class, 'webhook'])->middleware('throttle:30,1');
     Route::middleware('stateful.frontend')->group(function () {
         Route::post('auth/register', [AuthController::class, 'register'])
             ->middleware('throttle:register');
@@ -29,6 +31,14 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware(['auth:sanctum', 'sync.organization'])->group(function () {
+        Route::middleware(['stateful.frontend', 'throttle:30,1'])->group(function () {
+            Route::post('integration-auth/confirm', [ConnectionController::class, 'confirm'])->middleware('throttle:integration-step-up');
+            Route::get('organizations/{organization}/connections', [ConnectionController::class, 'index']);
+            Route::post('organizations/{organization}/connections', [ConnectionController::class, 'store']);
+            Route::put('organizations/{organization}/integration-policy', [ConnectionController::class, 'policy']);
+            Route::post('organizations/{organization}/integration-oauth/{stage}', [ConnectionController::class, 'oauth']);
+            Route::post('organizations/{organization}/connections/{connection}/{action}', [ConnectionController::class, 'action']);
+        });
         Route::get('me', [AuthController::class, 'me']);
 
         Route::get('organizations', [OrganizationController::class, 'index']);

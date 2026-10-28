@@ -3,6 +3,7 @@ export const WORKSPACE_NAV = [
   { href: "/tasks", label: "My Tasks" },
   { href: "/requests", label: "Requests" },
   { href: "/workflows", label: "Workflows" },
+  { href: "/connections", label: "Connections" },
   { href: "/analytics", label: "Analytics" },
   { href: "/team", label: "Team" },
   { href: "/settings", label: "Settings" },

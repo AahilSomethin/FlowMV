@@ -14,6 +14,7 @@ use App\Models\WorkflowInstance;
 use App\Models\WorkflowRevisionCounter;
 use App\Models\WorkflowTask;
 use App\Models\WorkflowVersion;
+use App\Services\Integrations\IntegrationRuntime;
 use App\Services\Workflows\Nodes\NodeRegistry;
 use Illuminate\Database\UniqueConstraintViolationException;
 
@@ -118,6 +119,22 @@ class WorkflowEngine
             if ($type === 'notification') {
                 $nodeId = $this->notifications->execute($instance, $version, $actor, $node, $nodeId, $this, $graph);
 
+                if ($nodeId === null) {
+                    return;
+                }
+
+                continue;
+            }
+
+            if ($type === 'integration_action') {
+                try {
+                    app(IntegrationRuntime::class)->action($instance, $node['data'] ?? [], $nodeId);
+                } catch (\Throwable) {
+                    $this->fail($instance, $actor, WorkflowFailureCode::InvalidGraph, $nodeId);
+
+                    return;
+                }
+                $nodeId = $this->successor($graph, $instance, $actor, $nodeId, 'out');
                 if ($nodeId === null) {
                     return;
                 }

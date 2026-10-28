@@ -5,6 +5,8 @@ describe("node presentation contracts", () => {
   it("keeps historical V1 nodes and handle identifiers while offering V2 additions", () => {
     expect(paletteNodeTypes(1).sort()).toEqual(["approval", "condition", "end", "revision", "start"]);
     expect(paletteNodeTypes(2)).toHaveLength(8);
+    expect(paletteNodeTypes(2)).not.toContain("integration_action");
+    expect(paletteNodeTypes(3)).toContain("integration_action");
     expect(sourceHandlesFor("condition")).toEqual(["true", "false"]);
     expect(sourceHandlesFor("revision")).toEqual(["return", "exhausted"]);
   });

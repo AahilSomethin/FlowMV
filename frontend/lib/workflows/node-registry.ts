@@ -4,7 +4,7 @@ import { SOURCE_HANDLES } from "@/lib/workflows/types";
 import { Play, ShieldCheck, GitBranch, RotateCcw, Flag, Bell, UserRoundCheck, Clock3, type LucideIcon } from "lucide-react";
 import type { FormField } from "@/lib/workflows/types";
 
-export const NODE_REGISTRY_VERSION = 2;
+export const NODE_REGISTRY_VERSION = 3;
 
 export type NodeCategoryId = "flow" | "people" | "communication" | "timing";
 
@@ -20,7 +20,7 @@ export const NODE_CATEGORY_LABELS: Record<NodeCategoryId, string> = {
 export const NODES_BY_CATEGORY: Record<NodeCategoryId, NodeType[]> = {
   flow: ["start", "condition", "end"],
   people: ["approval", "assignment", "revision"],
-  communication: ["notification"],
+  communication: ["notification", "integration_action"],
   timing: ["delay"],
 };
 
@@ -33,6 +33,7 @@ export const NODE_PRESENTATION: Record<NodeType, {
   inputLabel: string;
   outcomes: Record<string, string>;
 }> = {
+  integration_action: { icon: Bell, title: "Connected action", description: "Use a connection approved for this workflow.", accent: "var(--node-notification)", inputLabel: "Request", outcomes: { out: "Next" } },
   start: { icon: Play, title: "Start", description: "Begin when someone submits a request.", accent: "var(--node-start)", inputLabel: "", outcomes: { out: "Next" } },
   condition: { icon: GitBranch, title: "Condition", description: "Choose a path using the request’s answers.", accent: "var(--node-condition)", inputLabel: "Request", outcomes: { true: "Yes", false: "No" } },
   end: { icon: Flag, title: "End", description: "Complete or reject the request.", accent: "var(--node-end)", inputLabel: "Request", outcomes: {} },
@@ -46,6 +47,7 @@ export const NODE_PRESENTATION: Record<NodeType, {
 export function nodeSummary(type: NodeType, data: WorkflowNodeData, fields: FormField[] = []): string {
   const roles = (data.assignee_roles ?? []).map((role) => role === "admin" ? "Administrator" : role.charAt(0).toUpperCase() + role.slice(1)).join(", ");
   switch (type) {
+    case "integration_action": return data.connection_id ? "Simulated notification · approved connection" : "Choose an approved connection";
     case "start": return "Request submitted";
     case "end": return data.result === "rejected" ? "Request rejected" : data.result === "completed" ? "Request completed" : "Choose a result";
     case "approval": return roles ? `Decision by ${roles}` : "Choose who can approve";
@@ -70,6 +72,7 @@ export function nodeSummary(type: NodeType, data: WorkflowNodeData, fields: Form
 }
 
 const INTRODUCED_IN: Partial<Record<NodeType, number>> = {
+  integration_action: 3,
   notification: 2,
   assignment: 2,
   delay: 2,

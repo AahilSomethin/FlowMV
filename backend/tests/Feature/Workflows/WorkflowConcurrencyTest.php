@@ -15,11 +15,14 @@ use App\Models\Workflow;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowTask;
 use App\Models\WorkflowVersion;
+use App\Services\Integrations\ConnectionManager;
+use App\Services\Integrations\IntegrationRuntime;
 use App\Services\Workflows\Execution\IdempotentAction;
 use App\Services\Workflows\Execution\WorkflowEventWriter;
 use App\Support\OrganizationAdminGuard;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Concurrency;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +43,53 @@ use Tests\TestCase;
 class WorkflowConcurrencyTest extends TestCase
 {
     use DatabaseMigrations;
+
+    /** Forward-only migrations are recreated only in the guarded disposable database. */
+    public function runDatabaseMigrations(): void
+    {
+        $this->beforeRefreshingDatabase();
+        $this->refreshTestDatabase();
+        $this->afterRefreshingDatabase();
+        $this->beforeApplicationDestroyed(function (): void {
+            RefreshDatabaseState::$migrated = false;
+        });
+    }
+
+    public function test_concurrent_integration_retries_record_one_receipt(): void
+    {
+        $key = base64_encode(random_bytes(32));
+        config(['integrations.mock_enabled' => true, 'integrations.keys.v1' => $key]);
+        $actor = User::factory()->create();
+        $organization = Organization::factory()->create(['created_by' => $actor->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $organization->id, 'user_id' => $actor->id, 'role' => OrganizationRole::Admin]);
+        DB::table('integration_approvals')->insert(['organization_id' => $organization->id, 'provider_id' => 'local_mock', 'approved' => true]);
+        $manager = app(ConnectionManager::class);
+        $id = $manager->create($actor->id, $organization->id, ['name' => 'Concurrency mock', 'ownership' => 'organization', 'credential_type' => 'api_key'], ['api_key' => 'synthetic-concurrency-key-only']);
+        $workflow = Workflow::factory()->create(['organization_id' => $organization->id]);
+        $manager->act($actor->id, $organization->id, $id, 'share', ['workflow_id' => $workflow->uuid, 'operation' => 'mock.notify', 'destination' => 'mock:inbox']);
+        $nodeId = (string) Str::uuid();
+        $config = ['connection_id' => $id, 'operation' => 'mock.notify', 'destination' => 'mock:inbox'];
+        $version = WorkflowVersion::factory()->create(['workflow_id' => $workflow->id, 'node_registry_version' => 3, 'graph_definition' => ['nodes' => [['id' => $nodeId, 'type' => 'integration_action', 'data' => $config]], 'edges' => []]]);
+        $instance = WorkflowInstance::query()->create(['organization_id' => $organization->id, 'workflow_id' => $workflow->id, 'workflow_version_id' => $version->id, 'submitted_by' => $actor->id, 'status' => 'running', 'current_node_id' => $nodeId, 'submitted_data' => [], 'started_at' => now()]);
+        $instanceId = $instance->id;
+        $connection = config('database.connections.pgsql');
+        $at = microtime(true) + 1;
+        $work = static function () use ($connection, $key, $instanceId, $config, $nodeId, $at): bool {
+            config(['database.default' => 'pgsql', 'database.connections.pgsql' => $connection, 'integrations.mock_enabled' => true, 'integrations.keys.v1' => $key]);
+            DB::purge('pgsql');
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+
+            return app(IntegrationRuntime::class)->action(WorkflowInstance::findOrFail($instanceId), $config, $nodeId);
+        };
+        $results = Concurrency::driver('process')->run([$work, $work]);
+        sort($results);
+        $this->assertSame([false, true], $results);
+        $this->assertSame(1, DB::table('integration_receipts')->count());
+        $this->assertSame(1, DB::table('integration_audit_events')->where('event', 'integration.action.accepted')->count());
+    }
+
     use InteractsWithExecution;
 
     public function test_postgresql_notification_text_payloads_are_scoped_and_can_be_marked_read(): void

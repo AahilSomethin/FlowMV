@@ -6,6 +6,7 @@ use App\Enums\OrganizationRole;
 use App\Enums\WorkflowEndResult;
 use App\Enums\WorkflowNodeType;
 use App\Services\Workflows\Nodes\NodeRegistry;
+use Illuminate\Support\Carbon;
 
 class WorkflowDefinitionNormalizer
 {
@@ -49,10 +50,6 @@ class WorkflowDefinitionNormalizer
         private readonly NodeRegistry $registry,
     ) {}
 
-    /**
-     * @param  mixed  $graph
-     * @param  mixed  $form
-     */
     public function normalize(mixed $graph, mixed $form): NormalizedWorkflowDefinition
     {
         $violations = [];
@@ -89,6 +86,7 @@ class WorkflowDefinitionNormalizer
 
                 if (isset($seenNodes[$normalized['id']])) {
                     $violations[] = $this->violation('duplicate_node_id', 'Each node needs its own identifier.', $normalized['id']);
+
                     continue;
                 }
 
@@ -107,6 +105,7 @@ class WorkflowDefinitionNormalizer
 
                 if (isset($seenEdges[$normalized['id']])) {
                     $violations[] = $this->violation('duplicate_edge_id', 'Each connection needs its own identifier.', null, $normalized['id']);
+
                     continue;
                 }
 
@@ -133,6 +132,7 @@ class WorkflowDefinitionNormalizer
 
                 if (isset($seenFields[$normalized['id']])) {
                     $violations[] = $this->violation('duplicate_field_id', 'Each form field needs its own identifier.', null, null, $normalized['id']);
+
                     continue;
                 }
 
@@ -173,7 +173,7 @@ class WorkflowDefinitionNormalizer
         }
 
         $type = $node['type'] ?? null;
-        $allowedTypes = $this->registry->typesFor(NodeRegistry::CURRENT);
+        $allowedTypes = $this->registry->typesFor(NodeRegistry::AUTHORING);
 
         if (! is_string($type) || ! in_array($type, $allowedTypes, true)) {
             $violations[] = $this->violation('invalid_node_type', 'Use a supported node type.', $id);
@@ -207,6 +207,15 @@ class WorkflowDefinitionNormalizer
             'description' => $description ?? '',
         ];
 
+        if ($type === 'integration_action') {
+            $allowed = ['label', 'description', 'connection_id', 'operation', 'destination'];
+            if (array_diff(array_keys($data), $allowed) !== [] || ! is_string($data['connection_id'] ?? null) || ! str($data['connection_id'])->isUuid() || ($data['operation'] ?? null) !== 'mock.notify' || ! in_array($data['destination'] ?? null, ['mock:inbox', 'mock:review'], true)) {
+                $violations[] = $this->violation('integration_config', 'Choose a connection, supported operation and approved destination. Credentials are forbidden.', $id);
+            } else {
+                $normalized += array_intersect_key($data, array_flip(['connection_id', 'operation', 'destination']));
+            }
+        }
+
         if ($type === WorkflowNodeType::Approval->value) {
             $roles = $data['assignee_roles'] ?? [];
 
@@ -220,6 +229,7 @@ class WorkflowDefinitionNormalizer
             foreach ($roles as $role) {
                 if (! is_string($role) || OrganizationRole::tryFrom($role) === null) {
                     $violations[] = $this->violation('approval_assignee', 'Approval assignees must be admin, manager, or employee.', $id);
+
                     continue;
                 }
 
@@ -473,6 +483,7 @@ class WorkflowDefinitionNormalizer
                 foreach ($rawOptions as $option) {
                     if (! is_array($option)) {
                         $violations[] = $this->violation('invalid_field', 'A select option must be an object.', null, null, $id);
+
                         continue;
                     }
 
@@ -481,11 +492,13 @@ class WorkflowDefinitionNormalizer
 
                     if ($value === null || $value === '' || $optionLabel === null) {
                         $violations[] = $this->violation('invalid_field', 'Each select option needs a value and a label.', null, null, $id);
+
                         continue;
                     }
 
                     if (isset($seen[$value])) {
                         $violations[] = $this->violation('duplicate_option', 'Select option values must be unique.', null, null, $id);
+
                         continue;
                     }
 
@@ -570,6 +583,7 @@ class WorkflowDefinitionNormalizer
                     foreach ($raw as $extension) {
                         if (! is_string($extension) || preg_match('/^[a-z0-9]{1,8}$/', $extension) !== 1) {
                             $violations[] = $this->violation('invalid_field', 'File extensions must be short lowercase letters or numbers.', null, null, $fieldId);
+
                             continue;
                         }
 
@@ -813,6 +827,7 @@ class WorkflowDefinitionNormalizer
             foreach ($channels as $channel) {
                 if (! is_string($channel) || ! in_array($channel, ['in_app', 'email'], true)) {
                     $violations[] = $this->violation('notification_channels', 'Notification channels must be in_app or email.', $nodeId);
+
                     continue;
                 }
 
@@ -829,6 +844,7 @@ class WorkflowDefinitionNormalizer
             foreach ($roles as $role) {
                 if (! is_string($role) || OrganizationRole::tryFrom($role) === null) {
                     $violations[] = $this->violation('notification_recipients', 'Recipient roles must be admin, manager, or employee.', $nodeId);
+
                     continue;
                 }
 
@@ -845,6 +861,7 @@ class WorkflowDefinitionNormalizer
             foreach ($fieldIds as $fieldId) {
                 if (! is_string($fieldId) || $fieldId === '' || strlen($fieldId) > 64) {
                     $violations[] = $this->violation('notification_template', 'Allowed field ids must be short strings.', $nodeId);
+
                     continue;
                 }
 
@@ -889,6 +906,7 @@ class WorkflowDefinitionNormalizer
             foreach ($roles as $role) {
                 if (! is_string($role) || OrganizationRole::tryFrom($role) === null) {
                     $violations[] = $this->violation('assignment_assignee', 'Assignee roles must be admin, manager, or employee.', $nodeId);
+
                     continue;
                 }
 
@@ -956,7 +974,7 @@ class WorkflowDefinitionNormalizer
                 $violations[] = $this->violation('delay_config', 'A resume time must be an ISO-8601 timestamp.', $nodeId);
             } else {
                 try {
-                    $parsed = \Illuminate\Support\Carbon::parse($resumeAt)->utc();
+                    $parsed = Carbon::parse($resumeAt)->utc();
                     $cleanResumeAt = $parsed->toIso8601String();
                 } catch (\Throwable) {
                     $violations[] = $this->violation('delay_config', 'A resume time must be an ISO-8601 timestamp.', $nodeId);

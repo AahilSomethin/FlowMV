@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 
 type Page = { items: Array<{ uuid: string; name: string }>; current_page: number; last_page: number };
 
-export function WorkflowFilter({ organizationId, value, onChange }: { organizationId: string; value: string; onChange: (value: string) => void }) {
+export function WorkflowFilter({ organizationId, value, onChange, allowAll = true }: { organizationId: string; value: string; onChange: (value: string) => void; allowAll?: boolean }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -34,7 +34,7 @@ export function WorkflowFilter({ organizationId, value, onChange }: { organizati
     <DialogContent>
       <DialogHeader><DialogTitle>Filter by workflow</DialogTitle><DialogDescription>Search all workflows you can access.</DialogDescription></DialogHeader>
       <Input aria-label="Search workflows" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
-      <Button variant="outline" onClick={() => choose("all", "All workflows")}>All workflows</Button>
+      {allowAll && <Button variant="outline" onClick={() => choose("all", "All workflows")}>All workflows</Button>}
       {error ? <div role="alert">{error}<Button variant="outline" onClick={() => setRetry((count) => count + 1)}>Try again</Button></div> : !data ? <p role="status">Loading workflows…</p> : <>
         <ul className="max-h-64 space-y-1 overflow-y-auto">{data.items.map((item) => <li key={item.uuid}><Button variant={value === item.uuid ? "secondary" : "ghost"} className="w-full justify-start whitespace-normal text-left" onClick={() => choose(item.uuid, item.name)}>{item.name}</Button></li>)}</ul>
         {data.items.length === 0 ? <p>No matching workflows.</p> : null}

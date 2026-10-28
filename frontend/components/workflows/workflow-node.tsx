@@ -63,5 +63,5 @@ export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
 
 export const workflowNodeTypes = {
   start: WorkflowNode, approval: WorkflowNode, condition: WorkflowNode, revision: WorkflowNode,
-  end: WorkflowNode, notification: WorkflowNode, assignment: WorkflowNode, delay: WorkflowNode,
+  end: WorkflowNode, notification: WorkflowNode, assignment: WorkflowNode, delay: WorkflowNode, integration_action: WorkflowNode,
 };

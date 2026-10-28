@@ -42,7 +42,9 @@
     ".next-phase85-employee/types/**/*.ts",
     ".next-phase85-employee/dev/types/**/*.ts",
     ".next-phase85-build/types/**/*.ts",
-    ".next-phase85-build/dev/types/**/*.ts"
+    ".next-phase85-build/dev/types/**/*.ts",
+    ".next-integration-build/types/**/*.ts",
+    ".next-integration-build/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

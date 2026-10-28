@@ -8,7 +8,8 @@ export type NodeType =
   | "end"
   | "notification"
   | "assignment"
-  | "delay";
+  | "delay"
+  | "integration_action";
 
 export type NotificationChannel = "in_app" | "email";
 
@@ -38,6 +39,9 @@ export type ConditionRule = {
 };
 
 export type WorkflowNodeData = {
+  connection_id?: string;
+  operation?: string;
+  destination?: string;
   label: string;
   description: string;
   assignee_roles?: AssigneeRole[];
@@ -166,6 +170,7 @@ export const SOURCE_HANDLES: Record<NodeType, string[]> = {
   notification: ["out"],
   assignment: ["out"],
   delay: ["out"],
+  integration_action: ["out"],
 };
 
 export const OPERATORS: Record<FieldType, ConditionOperator[]> = {

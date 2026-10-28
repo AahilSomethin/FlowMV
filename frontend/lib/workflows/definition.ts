@@ -37,8 +37,13 @@ export function defaultNodeData(type: NodeType): WorkflowNodeData {
     notification: "Notification",
     assignment: "Assignment",
     delay: "Delay",
+    integration_action: "Connected action",
   };
   const base: WorkflowNodeData = { label: labels[type], description: "" };
+
+  if (type === "integration_action") {
+    return { ...base, connection_id: "", operation: "mock.notify", destination: "mock:inbox" };
+  }
 
   if (type === "approval") {
     return { ...base, assignee_roles: ["manager"] };
@@ -115,6 +120,10 @@ export function validateDefinition(graph: GraphDefinition, form: FormDefinition)
   for (const node of nodes) {
     if (!node.data.label.trim()) {
       violations.push(violation("incomplete_config", "Give this node a label.", node.id));
+    }
+
+    if (node.type === "integration_action" && (!node.data.connection_id || node.data.operation !== "mock.notify" || !["mock:inbox", "mock:review"].includes(node.data.destination ?? ""))) {
+      violations.push(violation("integration_config", "Choose an approved connection and destination.", node.id));
     }
 
     if (node.type === "approval" && (node.data.assignee_roles?.length ?? 0) === 0) {

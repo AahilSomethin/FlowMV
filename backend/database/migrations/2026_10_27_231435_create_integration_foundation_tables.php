@@ -1,8 +1,10 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+
 return new class extends Migration
 {
     public function up(): void
@@ -92,13 +94,14 @@ return new class extends Migration
             $table->timestamp('consumed_at')->nullable();
         });
         if (DB::getDriverName() === 'pgsql') {
-            DB::unprepared("CREATE FUNCTION reject_integration_audit_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Integration audit events are append-only'; END; $$");
+            DB::unprepared("CREATE OR REPLACE FUNCTION reject_integration_audit_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Integration audit events are append-only'; END; $$");
             DB::unprepared('CREATE TRIGGER integration_audit_immutable BEFORE UPDATE OR DELETE ON integration_audit_events FOR EACH ROW EXECUTE FUNCTION reject_integration_audit_mutation()');
         } else {
             DB::unprepared("CREATE TRIGGER integration_audit_no_update BEFORE UPDATE ON integration_audit_events BEGIN SELECT RAISE(ABORT, 'Integration audit events are append-only'); END");
             DB::unprepared("CREATE TRIGGER integration_audit_no_delete BEFORE DELETE ON integration_audit_events BEGIN SELECT RAISE(ABORT, 'Integration audit events are append-only'); END");
         }
     }
+
     public function down(): void
     {
         throw new RuntimeException('Forward-only integration migration. Ship a corrective migration.');

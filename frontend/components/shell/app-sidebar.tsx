@@ -11,6 +11,7 @@ import {
   Settings,
   Users,
   Workflow,
+  Plug,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,10 +32,12 @@ import { useAuth } from "@/lib/auth";
 import { roleLabel } from "@/lib/organizations";
 
 const descriptions: Record<WorkspaceHref, string> = {
+  "/connections": "Control connected services and workflow access",
   "/dashboard": "Your workspace at a glance", "/requests": "Start and track submissions", "/tasks": "Things requiring your action", "/workflows": "Design and manage processes", "/analytics": "Understand performance", "/team": "People and roles", "/settings": "Account and appearance",
 };
 
 const icons: Record<WorkspaceHref, typeof LayoutDashboard> = {
+  "/connections": Plug,
   "/dashboard": LayoutDashboard,
   "/tasks": ListTodo,
   "/requests": Inbox,

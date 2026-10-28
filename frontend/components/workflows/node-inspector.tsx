@@ -30,6 +30,7 @@ export function NodeInspector({
   nodes,
   fields,
   organizationId,
+  workflowId,
   violations = [],
   onChange,
   onRevisionTarget,
@@ -38,12 +39,24 @@ export function NodeInspector({
   nodes: WorkflowNode[];
   fields: FormField[];
   organizationId?: string | null;
+  workflowId?: string;
   violations?: WorkflowViolation[];
   onChange: (patch: Partial<WorkflowNodeData>) => void;
   onRevisionTarget: (approvalId: string) => void;
 }) {
   const [memberResult, setMemberResult] = useState<{ organizationId: string; items: MemberOption[] } | null>(null);
   const members = memberResult && memberResult.organizationId === organizationId ? memberResult.items : [];
+  const [connectionResult, setConnectionResult] = useState<{ key:string; items:{id:string;name:string;status:string}[] } | null>(null);
+  const connectionKey = `${organizationId}:${workflowId}`;
+  const connections = connectionResult?.key === connectionKey ? connectionResult.items : [];
+  useEffect(() => {
+    if (!organizationId || node?.type !== "integration_action") return;
+    let active = true;
+    void api<{items:{id:string;name:string;status:string}[]}>(`/api/v1/organizations/${organizationId}/connections${workflowId ? `?workflow_id=${workflowId}` : ""}`).then(result=>{
+      if(active) setConnectionResult({key:connectionKey,items:result.items});
+    }).catch(()=>{if(active) setConnectionResult({key:connectionKey,items:[]});});
+    return ()=>{active=false;};
+  },[organizationId,workflowId,connectionKey,node?.type]);
 
   useEffect(() => {
     if (!organizationId || node?.type !== "assignment") {
@@ -91,6 +104,7 @@ export function NodeInspector({
           onChange={(event) => onChange({ description: event.target.value })}
         />
       </div>
+      {node.type === "integration_action" ? <div className="space-y-3"><p className="text-sm text-muted-foreground">Uses a separately approved workflow grant. No credentials are stored in this workflow. Configure access in Connections.</p><Label htmlFor="integration-connection">Connection reference</Label><select id="integration-connection" value={node.data.connection_id ?? ""} onChange={e=>onChange({connection_id:e.target.value,operation:"mock.notify"})} className="h-10 w-full rounded-md border bg-background px-3"><option value="">Choose a connection</option>{connections.filter(c=>c.status === "enabled").map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><p className="text-xs text-muted-foreground">Approve workflow access in Connections before publishing. Personal connections run only for requests submitted by their owner.</p><Label htmlFor="integration-destination">Destination</Label><select id="integration-destination" value={node.data.destination ?? "mock:inbox"} onChange={e=>onChange({destination:e.target.value})} className="h-10 w-full rounded-md border bg-background px-3"><option value="mock:inbox">Mock inbox</option><option value="mock:review">Mock review</option></select></div> : null}
       {node.type === "approval" ? (
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium">Approver roles</legend>

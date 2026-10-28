@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowDraft;
 use App\Models\WorkflowVersion;
+use App\Services\Integrations\IntegrationRuntime;
 use App\Services\Workflows\Nodes\NodeRegistry;
 use App\Services\Workflows\WorkflowDefinitionNormalizer;
 use App\Services\Workflows\WorkflowDefinitionValidator;
@@ -54,6 +55,14 @@ class PublishWorkflow
 
             $next = ((int) WorkflowVersion::query()->where('workflow_id', $locked->id)->max('version_number')) + 1;
 
+            $registryVersion = NodeRegistry::CURRENT;
+            foreach ($normalized->graph['nodes'] as $node) {
+                if ($node['type'] === 'integration_action') {
+                    app(IntegrationRuntime::class)->authorized($locked->organization_id, $locked->id, $node['data']);
+                    $registryVersion = NodeRegistry::V3;
+                }
+            }
+
             try {
                 $version = WorkflowVersion::query()->create([
                     'workflow_id' => $locked->id,
@@ -61,7 +70,7 @@ class PublishWorkflow
                     'graph_definition' => $normalized->graph,
                     'form_definition' => $normalized->form,
                     'content_hash' => $normalized->hash,
-                    'node_registry_version' => NodeRegistry::CURRENT,
+                    'node_registry_version' => $registryVersion,
                     'published_by' => $user->id,
                     'published_at' => now(),
                 ]);

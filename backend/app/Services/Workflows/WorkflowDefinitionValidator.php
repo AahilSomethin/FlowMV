@@ -76,20 +76,23 @@ class WorkflowDefinitionValidator
 
             if ($source === null || $target === null) {
                 $violations[] = $this->violation('invalid_edge_endpoint', 'A connection points at a missing node.', null, $edge['id']);
+
                 continue;
             }
 
-            $allowed = $this->registry->allows(NodeRegistry::CURRENT, $source['type'])
+            $allowed = $this->registry->allows(NodeRegistry::AUTHORING, $source['type'])
                 ? $this->registry->sourceHandles($source['type'])
                 : [];
 
             if (! in_array($edge['source_handle'], $allowed, true)) {
                 $violations[] = $this->violation('invalid_handle', 'This connection is not an outcome of its source node.', $source['id'], $edge['id']);
+
                 continue;
             }
 
             if ($target['type'] === 'start' || $edge['target_handle'] !== 'in') {
                 $violations[] = $this->violation('invalid_edge_endpoint', 'Only Approval, Condition, Revision, and End nodes accept incoming connections.', $target['id'], $edge['id']);
+
                 continue;
             }
 
@@ -97,6 +100,7 @@ class WorkflowDefinitionValidator
 
             if (isset($handleOwners[$handleKey])) {
                 $violations[] = $this->violation('invalid_handle', 'Each outcome can have one connection.', $source['id'], $edge['id']);
+
                 continue;
             }
 
@@ -191,6 +195,7 @@ class WorkflowDefinitionValidator
 
                 if ($field === null) {
                     $violations[] = $this->violation('unknown_field', 'This rule references a form field that does not exist.', $node['id'], null, $rule['field_id']);
+
                     continue;
                 }
 
@@ -198,6 +203,7 @@ class WorkflowDefinitionValidator
 
                 if (! in_array($rule['operator'], $allowed, true)) {
                     $violations[] = $this->violation('operator_mismatch', 'This operator does not apply to the selected field.', $node['id'], null, $field['id']);
+
                     continue;
                 }
 
@@ -232,6 +238,7 @@ class WorkflowDefinitionValidator
             foreach ($fieldIds as $fieldId) {
                 if (! isset($known[$fieldId])) {
                     $violations[] = $this->violation('unknown_field', 'This notification references a form field that does not exist.', $node['id'], null, $fieldId);
+
                     continue;
                 }
 
@@ -533,6 +540,7 @@ class WorkflowDefinitionValidator
 
             if ($next === []) {
                 $terminals[] = $id;
+
                 continue;
             }
 

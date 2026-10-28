@@ -19,6 +19,10 @@ class NodeRegistry
 
     public const V2 = 2;
 
+    public const V3 = 3;
+
+    public const AUTHORING = self::V3;
+
     public const CURRENT = self::V2;
 
     /**
@@ -33,6 +37,7 @@ class NodeRegistry
         'notification' => ['out'],
         'assignment' => ['out'],
         'delay' => ['out'],
+        'integration_action' => ['out'],
     ];
 
     /**
@@ -40,6 +45,9 @@ class NodeRegistry
      */
     public function typesFor(int $registryVersion): array
     {
+        if (! in_array($registryVersion, [self::V1, self::V2, self::V3], true)) {
+            return [];
+        }
         $types = array_map(
             fn (WorkflowNodeType $type) => $type->value,
             WorkflowNodeType::v1(),
@@ -49,6 +57,10 @@ class NodeRegistry
             foreach (WorkflowNodeType::v2Additions() as $type) {
                 $types[] = $type->value;
             }
+        }
+
+        if ($registryVersion === self::V3) {
+            $types[] = 'integration_action';
         }
 
         return $types;
@@ -87,6 +99,9 @@ class NodeRegistry
 
     public function introducedIn(string $type): int
     {
+        if ($type === 'integration_action') {
+            return self::V3;
+        }
         $enum = WorkflowNodeType::tryFrom($type);
 
         return $enum?->introducedIn() ?? PHP_INT_MAX;
