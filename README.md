@@ -1,14 +1,31 @@
 # FlowMV
 
-FlowMV is a workplace request and approval application: Next.js and React Flow provide the authoring interface; Laravel executes immutable published workflows with organization permissions, decision snapshots and durable integration outboxes. PostgreSQL is the application database. A private Go service now owns optional advisory AI processing; Laravel retains authorization and workflow decisions.
+FlowMV is a workplace request and approval platform. Teams design workflows in a visual builder, employees submit requests, managers decide, and integrations deliver outcomes with organization-scoped permissions and immutable audit history.
 
-**Maturity:** Phase 12 engineering is accepted for the verified local/simulated scope; production is **NOT CLEARED**. Native and Docker showcases and isolated staging were exercised separately. Live-provider verification, production operations and independent accessibility/security gates remain open in the [current acceptance report](docs/phase12-final-acceptance.md). Never treat a simulated response as real message delivery. Historical phase reports retain their original scope.
+## Capabilities
 
-Start with the [developer documentation](docs/README.md) or the [isolated showcase setup](docs/demo/demo-setup.md). No real provider credentials are required for the showcase.
+- Visual workflow builder with drafts and immutable published versions
+- Approvals, revisions, conditions, delays and multi-step processes
+- Email, documents, Slack, Telegram and SMS connectors
+- Optional advisory AI via Gemini and OpenAI (private Go service)
+- Organization RBAC, encrypted credentials and private document storage
+- Analytics and append-only audit history
 
-## Local showcase
+## Stack
 
-Prerequisites: PHP 8.4 with PostgreSQL, ZIP, XML/XMLReader and mbstring extensions; Composer; Node 22; PostgreSQL 18 tools; Go 1.27.3 (the module pins the toolchain). From the repository root:
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js, React, React Flow |
+| Application API | Laravel (PHP), Sanctum sessions |
+| Advisory AI | Private Go REST service |
+| Database | PostgreSQL |
+| Workers | Laravel queue + scheduler |
+
+**Showcase vs production:** Native and Docker showcases are verified with **simulated** provider and AI transports. Production is **NOT CLEARED**. See [outstanding work](docs/reference/outstanding-work.md).
+
+## Native quick start
+
+Prerequisites: PHP 8.4 (PostgreSQL, ZIP, XML/XMLReader, mbstring), Composer, Node 22, PostgreSQL 18 tools, Go 1.27.3.
 
 ```powershell
 composer install --working-dir=backend
@@ -17,11 +34,9 @@ node scripts/demo-setup.mjs native
 node scripts/demo-run.mjs
 ```
 
-Open `http://localhost:3010`. Generated login details are in the ignored `backend/storage/app/phase10-demo/native/accounts.json`. Use ordinary login/logout to change roles. Treat this private file like passwords. The launcher owns only its child processes; Ctrl+C stops them. It leaves PostgreSQL and data intact. Setup refuses existing QA targets and never resets a database.
+Open `http://localhost:3010`. Passwords are only in the ignored file `backend/storage/app/phase10-demo/native/accounts.json`.
 
-## Docker showcase
-
-Docker Desktop must have a working Linux engine:
+## Docker quick start
 
 ```powershell
 node scripts/demo-container.mjs up
@@ -29,27 +44,32 @@ node scripts/demo-container.mjs verify
 node scripts/demo-container.mjs stop
 ```
 
-Open `http://localhost:3011`. Compose uses a private network and named volumes; PostgreSQL has no exposed port. See [setup and evidence limitations](docs/demo/demo-setup.md) before claiming container acceptance. No destructive reset command is provided.
+Open `http://localhost:3011`. PostgreSQL has no host port. No destructive reset command is provided.
 
-## Repository
+## Testing overview
 
-| Path | Purpose |
+```powershell
+npm test --prefix frontend -- --maxWorkers=2
+npm run typecheck --prefix frontend
+npm run lint --prefix frontend
+php artisan test --compact   # from backend/
+go test ./...                # from services/ai-go/
+```
+
+Never run `migrate:fresh` on demo, QA or hosted databases.
+
+## Documentation
+
+| Guide | Purpose |
 | --- | --- |
-| `backend/app/Actions` | Transactional workflow and organization use cases |
-| `backend/app/Services/Workflows` | Versioned definitions, pure validation, preview and execution |
-| `backend/app/Services/Integrations` | Vault, scoped connectors, verified ingress and durable outboxes |
-| `frontend/components` | Authenticated product screens, builder and provider setup |
-| `scripts`, `docker/demo` | Owned demonstration launchers and container definitions |
-| `docs` | Architecture, APIs, security, operations and acceptance evidence |
+| [Quick start](docs/quick-start.md) | Prerequisites, env, native/Docker, tests |
+| [Architecture](docs/architecture.md) | System diagrams, auth, Go AI, deployment |
+| [Workflows & integrations](docs/workflows-and-integrations.md) | Builder, registry, providers, AI flows |
+| [Operations & security](docs/operations-and-security.md) | Trust boundaries, runbooks, blockers |
+| [Showcase guide](docs/showcase-guide.md) | MINDCo demo script and scenarios |
 
-See [testing](docs/testing/testing-strategy.md) for sequential checks and the guarded PostgreSQL test target. Never run `migrate:fresh`, reset hosted data or place production tokens in fixtures. Preserve V1/V2/V3 published contracts.
-
-## Phase 11 advisory AI
-
-See [implementation and acceptance](docs/phase11-ai-go-acceptance.md), [OpenAI/Gemini website setup](docs/integrations/ai.md), and [Go migration measurements](docs/performance/go-migration-results.md). After launching the guarded demo, run `php artisan demo:ai-seed --env=demo` from backend; repeat runs verify without overwriting. Live-provider verification remains pending.
+Full index: [docs/README.md](docs/README.md). Historical evidence: [docs/archive](docs/archive/README.md).
 
 ## Licensing
 
-No project license has been established in this repository. Framework and dependency licenses do not grant a license to FlowMV application code. Obtain the owner's explicit terms before redistribution; dependency notices remain applicable.
-
-Phase 12 engineering and release gates are tracked in the [current acceptance report](docs/phase12-final-acceptance.md). The isolated [release candidate](docs/operations/production-readiness-checklist.md) is separate from the showcases; production launch remains NOT CLEARED.
+No project license is established. Dependency licenses are not a substitute for FlowMV application terms.

@@ -10,7 +10,7 @@ Request `GET /sanctum/csrf-cookie` with credentials, then `POST /api/v1/auth/log
 
 Workflow create accepts a name and description; draft save accepts graph/form definitions with the current revision. A stale revision returns conflict. Publishing requires Admin authorization and a valid graph with all referenced provider grants. Published versions and submission/decision snapshots are immutable. Requests accept fields defined by the pinned version. Task decision and completion endpoints recheck role/user eligibility, open state and current membership under locks. External workflows require authorized activation proof; posting a form cannot impersonate a webhook.
 
-## Phase 10 authoring endpoints
+## Authoring endpoints
 
 All following paths are beneath `/api/v1/organizations/{organization}`:
 
@@ -47,6 +47,6 @@ Provider setup endpoints retain their existing contracts. Use [provider instruct
 
 Validation responses may carry field errors and graph violations with safe node/edge/field IDs. Provider errors use stable safe codes. Do not echo provider responses, credentials or private content into exceptions or support tickets. Read-only comparison and preview responses are `no-store, private`.
 
-## Phase 11 advisory AI
+## Advisory AI
 
 See the [AI REST contract](ai.md) for organization policy, scoped BYOK connections, reference-only analysis and authorized result reads. Go is private and is never a browser API.

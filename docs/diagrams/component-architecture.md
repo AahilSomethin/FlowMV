@@ -13,15 +13,16 @@ flowchart TB
     Routes[Stateful API controllers and resource locators]
     Policies[Membership / policies / step-up]
     Actions[Create / save / publish / submit / decide actions]
-    Registry[NodeRegistry V1 / V2 / V3]
+    Registry[NodeRegistry V1 / V2 / V3 / V4]
     Normalize[Definition normalization and validation]
     Engine[WorkflowEngine and PublishedGraph]
     Pure[WorkflowPreview and pure evaluators]
     Connectors[Connector interface and provider services]
-    Jobs[Activation / extraction / delivery jobs]
+    Jobs[Activation / extraction / delivery / AI jobs]
     Audit[Append-only events and decision snapshots]
     Vault[CredentialVault]
   end
+  Go[Private Go advisory AI service]
   Store[(PostgreSQL and private encrypted files)]
   Shell --> Routes
   Builder --> Routes
@@ -40,6 +41,7 @@ flowchart TB
   Connectors --> Jobs
   Jobs --> Policies
   Jobs --> Vault
+  Jobs -->|Signed IDs only| Go
   Audit --> Store
   Actions --> Store
   Vault --> Store
@@ -47,4 +49,4 @@ flowchart TB
   Pure --> Normalize
 ```
 
-Preview has no edge to jobs, vault or execution handlers. Provider implementations retain their specific authorization boundaries.
+NodeRegistry V4 covers seven advisory AI node types only; V1/V2/V3 published snapshots retain their contracts. Preview has no edge to jobs, vault, Go or execution handlers. Provider implementations retain their specific authorization boundaries.

@@ -1,6 +1,6 @@
 # Go service and migration boundary
 
-Phase 11 introduces `services/ai-go`, a Go 1.27.3 standard-library service with transport, security, contracts, AI, document and provider packages. It owns new advisory analysis, provider-specific structured-output requests, prompt isolation, output validation, concurrency limits and safe failure handling. It is not a forwarding facade around Laravel.
+`services/ai-go` is a Go 1.27.3 standard-library service with transport, security, contracts, AI, document and provider packages. It owns advisory analysis, provider-specific structured-output requests, prompt isolation, output validation, concurrency limits and safe failure handling. It is not a forwarding facade around Laravel.
 
 Laravel retains authentication, organization/member authorization, vault decryption, approved data sources, usage reservations, publication, version pinning, state transitions, human approvals, snapshots and authoritative audit. The browser never calls Go. Go receives neither PostgreSQL credentials nor permission to change domain state, send notifications, create grants or invoke model tools.
 
@@ -11,7 +11,7 @@ Laravel retains authentication, organization/member authorization, vault decrypt
 | Event normalization/validation | Keep signed ingress in Laravel. Provider verification, identity and deduplication are already coupled to scoped activation. No equivalent migration benefit demonstrated. |
 | Deterministic document extraction | Keep scanning, ZIP/XML parsing and PDF safeguards in Laravel. A pure extracted-text matcher was prototyped in Go and compared with PHP over authenticated HTTP; parity held but communication cost dominated. Retain PHP. |
 | Integration event processing | Keep activation and outboxes in Laravel; interpret authorized email/Slack/document content in the new Go AI service. |
-| Analytics aggregation | Retain SQL and Laravel visibility. Phase 10 measurements showed SQL/state coupling, not an eligible pure CPU bottleneck. |
+| Analytics aggregation | Retain SQL and Laravel visibility. Showcase measurements showed SQL/state coupling, not an eligible pure CPU bottleneck. |
 | Read-only domain REST APIs | Retain authorization, pagination and visibility contracts in Laravel. A forwarding layer adds cost without meaningful ownership. |
 | AI orchestration | Implement in Go as new functionality, not a claimed optimization of prior PHP work. |
 | Provider-independent text processing | The pure matching prototype remains internal for parity/measurement; production document execution still uses PHP. |
@@ -56,6 +56,6 @@ The native launcher builds the Go module, checks ports and starts only its own c
 
 Sources checked 2026-11-04: [OpenAI structured output](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses), [model metadata](https://developers.openai.com/api/reference/resources/models/methods/retrieve), [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output), [Gemini model metadata](https://ai.google.dev/api/models), [Go release manifest](https://go.dev/dl/?mode=json). These contracts do not constitute live-provider acceptance.
 
-## Phase 12 lifecycle hardening
+## Lifecycle hardening
 
 Healthcheck honors the configured port and verifies TLS, including its loopback SAN; a partial TLS key/certificate pair fails startup. On termination, readiness drains first and main waits for graceful shutdown to finish instead of exiting as soon as the listener closes. A 30-second drain is bounded and forcibly closes remaining connections at expiry. Tests hold an active request through listener shutdown and verify completion. Private CA support is operator-configured in Laravel through `AI_CA_CERT`, never disabled verification. No additional Laravel domain responsibility migrated to Go.

@@ -4,17 +4,17 @@
 
 Dedicated test accounts, correctly registered OAuth applications, public HTTPS callbacks/webhooks and authorized destinations are required. Verify Telegram, Gmail, Outlook, Slack and Twilio independently. Record actual provider responses separately from recipient delivery; preserve replay/revocation tests and no-exactly-once limitations. Do not enter real tokens into the guarded demo or test fixtures.
 
-## Phase 11 — preserved implementation
+## Advisory AI — preserved implementation
 
-Phase 11 adds Go-owned advisory AI, scoped OpenAI/Gemini connections and V4 builder nodes. The [current ledger](../phase11-ai-go-acceptance.md) records completed native/container simulated acceptance and the remaining live/production gates. Real provider processing, content quality, billing and production privacy/operations approval remain pending. Phase 10 reports describe their historical scope.
+Go owns advisory AI, scoped OpenAI/Gemini connections and V4 builder nodes. The [AI and Go acceptance ledger](../archive/phase11-ai-go-acceptance.md) records completed native/container simulated acceptance and the remaining live/production gates. Real provider processing, content quality, billing and production privacy/operations approval remain pending. Earlier showcase reports describe their historical scope.
 
-## Phase 12 — assessed release candidate
+## Assessed release candidate
 
-The [Phase 12 report](../phase12-final-acceptance.md) records the final engineering evidence. A separate local PHP-FPM/TLS candidate, non-owner runtime database role, supervised queue/scheduler heartbeats, signed private Go TLS and an 83-table database restore rehearsal are implemented. Production-shaped PKI/PostgreSQL TLS, controlled provider egress, verified ClamAV/PDF isolation, approved retention, external secret custody, operational alerts, encrypted file/key/off-site/PITR recovery and explicit deployment approval remain gates. Local rehearsal does not close them. No production deployment was performed.
+The [engineering acceptance ledger](../archive/phase12-final-acceptance.md) records the final engineering evidence. A separate local PHP-FPM/TLS candidate, non-owner runtime database role, supervised queue/scheduler heartbeats, signed private Go TLS and an 83-table database restore rehearsal are implemented. Production-shaped PKI/PostgreSQL TLS, controlled provider egress, verified ClamAV/PDF isolation, approved retention, external secret custody, operational alerts, encrypted file/key/off-site/PITR recovery and explicit deployment approval remain gates. Local rehearsal does not close them. No production deployment was performed.
 
-## Phase 10 acceptance and accessibility limits
+## Showcase acceptance and accessibility limits
 
-The historical [acceptance report](../phase10-acceptance.md) retains its original scope. Phase 12 adds automated auth/dialog accessibility checks and measured selected opaque theme-token contrast, including form boundaries and destructive controls. A real screen-reader session, effective 200% browser zoom, reduced-motion emulation and comprehensive third-party builder accessibility remain unverified. Viewport tests do not substitute for those checks. No blanket WCAG claim is made.
+The historical [showcase acceptance report](../archive/phase10-acceptance.md) retains its original scope. Later engineering adds automated auth/dialog accessibility checks and measured selected opaque theme-token contrast, including form boundaries and destructive controls. A real screen-reader session, effective 200% browser zoom, reduced-motion emulation and comprehensive third-party builder accessibility remain unverified. Viewport tests do not substitute for those checks. No blanket WCAG claim is made.
 
 ## Optional debt
 

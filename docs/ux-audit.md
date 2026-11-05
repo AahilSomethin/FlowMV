@@ -1,8 +1,8 @@
 # Product UX and security findings register
 
-Static review preserves established PageHeader, loading, error, empty-state, navigation, theme and role patterns. The original register below describes Phase 10; the Phase 12 update follows it. Browser results are recorded per journey; this register does not imply accessibility certification or unchecked views passed.
+Static review preserves established PageHeader, loading, error, empty-state, navigation, theme and role patterns. The original register below describes the product showcase verification; the later engineering update follows it. Browser results are recorded per journey; this register does not imply accessibility certification or unchecked views passed.
 
-| Area | Finding / preserved behavior | Phase 10 action and verification |
+| Area | Finding / preserved behavior | Showcase action and verification |
 | --- | --- | --- |
 | Authentication | Stateful Sanctum/CSRF and normal role changes must remain authoritative | Native Admin/Manager/Employee normal login/logout and Docker Admin login passed. Expired session redirected to login after services resumed; retryable outage state was explicit |
 | Workspaces | Workspace labels are not authorization; switching must re-resolve current membership | Existing transition/remount behavior preserved; no demo role switcher added |
@@ -19,11 +19,11 @@ Static review preserves established PageHeader, loading, error, empty-state, nav
 | Settings | Browser theme preferences and account/workspace detail already exist | Both themes exercised across all three roles and desktop/tablet/mobile cases; System preference restored afterward |
 | Docs/onboarding | Framework boilerplate and missing central entry obscure maturity | Root/index/current guides added; historical paths preserved |
 
-The [final acceptance report](phase10-acceptance.md) records the representative role/theme/viewport matrix, wizard Escape/focus restoration, native required-field focus, safe preview field alerts, labels and status semantics. Screen-reader, measured contrast, effective 200% zoom and reduced-motion emulation remain unverified. Browser zoom shortcuts had no effect and no motion-emulation capability was exposed. No accessibility certification or exhaustive cross-browser claim is made. Simulated provider operations remained labeled as such. No new broken journey was found in the four rehearsed scenarios; shared-host latency and browser-control timeouts were resolved by inspecting settled states.
+The [final acceptance report](archive/phase10-acceptance.md) records the representative role/theme/viewport matrix, wizard Escape/focus restoration, native required-field focus, safe preview field alerts, labels and status semantics. Screen-reader, measured contrast, effective 200% zoom and reduced-motion emulation remain unverified. Browser zoom shortcuts had no effect and no motion-emulation capability was exposed. No accessibility certification or exhaustive cross-browser claim is made. Simulated provider operations remained labeled as such. No new broken journey was found in the four rehearsed scenarios; shared-host latency and browser-control timeouts were resolved by inspecting settled states.
 
-## Phase 12 verification update
+## Engineering verification update
 
-The [current report](phase12-final-acceptance.md) records final counts and production gates. Auth now has a primary heading/status semantics, refresh-generation protection and safe CSRF recovery. Intent navigation prepares bounded route shells only. Analytics defers charts with a stable loading/failure boundary; its initial JavaScript is measured, not an inferred navigation speed claim. Selected light/dark text and form/control token contrast is tested; destructive controls use opaque surfaces.
+The [engineering acceptance ledger](archive/phase12-final-acceptance.md) records final counts and production gates. Auth now has a primary heading/status semantics, refresh-generation protection and safe CSRF recovery. Intent navigation prepares bounded route shells only. Analytics defers charts with a stable loading/failure boundary; its initial JavaScript is measured, not an inferred navigation speed claim. Selected light/dark text and form/control token contrast is tested; destructive controls use opaque surfaces.
 
 Native Admin checked analytics, provenance, a cancelled password-protected revoke dialog and preserved composed request/advice. Dialog reverse-tab stayed trapped and Escape restored Revoke focus. Desktop builder search/Tidy/Undo returned to Draft saved without a write; tablet panels and 390px read-only mode passed. Manager saw eligible Approve/Reject and no Publish. Employee saw no Manager-task decision or shared Telegram administration controls, policy-disabled personal connection setup, and a read-only direct builder URL. 320px request list and 390px Connections/request views had no sampled document overflow. Docker normal Admin login and its independent completed composed request passed.
 

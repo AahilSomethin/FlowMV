@@ -1,6 +1,6 @@
 # Final security review
 
-This is a source/dependency review and regression record, not an independent penetration test. The [Phase 12 ledger](../phase12-final-acceptance.md) records executed checks and unresolved gates. No source finding authorizes production release.
+This is a source/dependency review and regression record, not an independent penetration test. The [engineering acceptance ledger](../archive/phase12-final-acceptance.md) records executed checks and unresolved gates. No source finding authorizes production release.
 
 ## Threats and controls
 

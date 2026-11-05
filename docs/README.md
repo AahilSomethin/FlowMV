@@ -1,30 +1,36 @@
 # FlowMV documentation
 
-This is the current documentation entry point. Historical phase reports retain their original evidence; new guides describe current code and explicitly separate operational proposals from verified results.
+Five primary guides cover day-to-day reading. Specialist references and historical evidence stay available when you need depth.
 
-| Area | Authoritative guide |
+## Primary guides
+
+1. [Quick start](quick-start.md) — run native or Docker, configure env, run tests
+2. [Architecture](architecture.md) — system overview with embedded diagrams
+3. [Workflows & integrations](workflows-and-integrations.md) — builder, providers, AI flows
+4. [Operations & security](operations-and-security.md) — trust boundaries, ops, production blockers
+5. [Showcase guide](showcase-guide.md) — MINDCo demo walkthrough and script
+
+## Specialist reference
+
+| Topic | Location |
 | --- | --- |
-| Requirements, native setup and troubleshooting | [Getting started](getting-started/local-development.md) |
-| Architecture and version compatibility | [Architecture](architecture/overview.md) |
-| Source, route and Markdown inventory | [Repository inventory](architecture/repository-inventory.md) |
-| Trust boundaries and permissions | [Security](architecture/security-boundaries.md) |
-| Routes, payloads and errors | [API reference](api/README.md) |
-| Providers, credential management and connector development | [Integrations](integrations/README.md) |
-| Workers, deployment, recovery, retention and incidents | [Operations](operations/runbooks.md) |
-| Backend, frontend, database and browser checks | [Testing](testing/testing-strategy.md) |
-| Role-based product use | [User guides](guides/roles-and-workflows.md) |
-| Page-by-page UX and security findings | [UX audit register](ux-audit.md) |
-| Architecture and subsystem ERDs | [Diagrams](diagrams/README.md) |
-| Reproducible demo | [Setup](demo/demo-setup.md), [presentation](demo/demo-script.md) |
-| Live verification, Phase 11, Phase 12 and debt | [Outstanding work](reference/outstanding-work.md) |
-| Historical reports and missing evidence | [Archive index](archive/README.md) |
-| Phase 12 current engineering and release gates | [Acceptance](phase12-final-acceptance.md), [navigation](performance/frontend-loading-and-prefetch.md), [backend measurements](performance/backend-optimization.md), [security](security/final-security-review.md), [production checklist](operations/production-readiness-checklist.md) |
-| Phase 11 implementation and checks | [Acceptance](phase11-ai-go-acceptance.md), [AI setup](integrations/ai.md), [Go architecture](architecture/go-service.md), [measurements](performance/go-migration-results.md) |
-| Phase 10 actual checks | [Acceptance report](phase10-acceptance.md) |
-| Measurements and Go gate | [Go evaluation](performance/go-evaluation.md) |
+| Detailed runbooks and candidate checklist | [operations/](operations/runbooks.md) |
+| REST API contracts and routes | [api/](api/README.md) |
+| AI connection setup | [integrations/ai.md](integrations/ai.md) |
+| Database roles | [database-access.md](database-access.md) |
+| Cache and rate limits | [cache-and-rate-limits.md](cache-and-rate-limits.md) |
+| Testing commands | [testing/testing-strategy.md](testing/testing-strategy.md) |
+| Known gates | [reference/outstanding-work.md](reference/outstanding-work.md) |
+| Historical acceptance evidence | [archive/](archive/README.md) |
 
-## Maintaining these guides
+## Maintaining docs
 
-For a route, schema, permission or worker change, update its guide, applicable diagram and focused test together. Generate route facts with `php artisan route:list --json --except-vendor`; never copy tokens, login manifests, private documents, message bodies or raw environment files into documentation. Keep prior phase counts unchanged and add new evidence to the current ledger.
+Update the relevant primary guide when behavior changes. Keep detailed commands in specialist runbooks when brevity would drop a safety step. Validate with:
 
-Install approved development tools with `npm ci --prefix tools/docs`. Run `node scripts/check-docs.mjs` and `node scripts/render-diagrams.mjs` from root. Mermaid CLI is pinned in its separate lockfile; it adds no application dependency. Rendered artifacts are ignored. Inspect the renders as well as checking syntax. File-link validation excludes remote URLs and anchors, which need separate review. Update acceptance with actual command, date, target, exit result and limitations. Do not label proposed procedures as recovery or deployment evidence.
+```powershell
+npm ci --prefix tools/docs
+node scripts/check-docs.mjs
+node scripts/render-diagrams.mjs
+```
+
+Never copy tokens, login manifests or private message bodies into documentation. Showcase and production claims must stay separate.

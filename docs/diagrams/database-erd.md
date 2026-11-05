@@ -92,3 +92,19 @@ erDiagram
   workflow_instances ||--o{ sms_action_outbox : sends
   sms_action_outbox ||--o{ sms_status_receipts : records
 ```
+
+## Advisory AI
+
+```mermaid
+erDiagram
+  direction LR
+  organizations ||--o| ai_policies : controls
+  connections ||--o| ai_connections : configures
+  workflows ||--o{ ai_workflow_grants : permits
+  connections ||--o{ ai_workflow_grants : scopes
+  workflow_instances ||--o{ ai_processing_runs : references
+  ai_processing_runs ||--|| ai_usage_reservations : reserves
+  organizations ||--o{ ai_demo_scenarios : owns
+```
+
+AI tables come from the AI processing foundation and demo-scenario migrations. Attribute-level detail and trust-boundary diagrams live in [AI processing](ai-processing.md).

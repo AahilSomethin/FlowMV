@@ -226,7 +226,7 @@ class AiShowcaseDataset
 
     private function emailExample(): array
     {
-        $email = app(EmailQaTransport::class)->connect($this->request($this->admin), $this->org->id, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => 'MINDCo Phase 11 simulated mailbox', 'ownership' => 'organization'], 'mindco.ai.applications@example.com');
+        $email = app(EmailQaTransport::class)->connect($this->request($this->admin), $this->org->id, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => 'MINDCo simulated mailbox', 'ownership' => 'organization'], 'mindco.ai.applications@example.com');
         $connections = app(EmailConnections::class);
         $connections->action($this->admin->id, $this->org->id, $email, 'approve', []);
         $connections->action($this->admin->id, $this->org->id, $email, 'approve-destination', ['address' => $this->employee->email]);

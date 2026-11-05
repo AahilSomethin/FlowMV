@@ -26,3 +26,19 @@ node_modules/
 
 # Generated documentation diagrams
 /docs/diagrams/rendered/
+
+# Reproducible local outputs (never application data/evidence)
+/frontend/.next*/
+/frontend/*.tsbuildinfo
+/frontend/coverage/
+/backend/.phpunit.result.cache
+/backend/.phpunit.cache/
+/services/ai-go/bin/
+/services/ai-go/*.exe
+/services/ai-go/*.test
+/services/ai-go/coverage*.out
+
+/frontend/.vitest/
+/frontend/.vite/
+/backend/coverage/
+/services/ai-go/coverage/

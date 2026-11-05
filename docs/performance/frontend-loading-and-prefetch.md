@@ -4,7 +4,7 @@
 
 Installed Next.js 16.4.3 and React 19.3.0 use Cache Components and partial prefetching. The installed version's bundled documentation was reviewed before edits. Existing automatic Link behavior warms each visible route shell. Private business data is fetched by authenticated client effects, not embedded in a reusable server cache.
 
-The native production bundle from Phase 11 is the before artifact. `node scripts/profile-navigation.mjs before` measures authenticated HTML requests and initial script bytes across login, overview, tasks, requests/detail, workflows/builder, connections, analytics/audit, team and settings. The after command must run against the rebuilt bundle. These measurements do not represent browser hydration or full client transitions. The current read-only browser surface exposes no Performance API; that measurement limitation must remain explicit. A modeled 120 ms RTT / 256 KiB/s case is an estimate, not browser network emulation.
+The prior native production bundle is the before artifact. `node scripts/profile-navigation.mjs before` measures authenticated HTML requests and initial script bytes across login, overview, tasks, requests/detail, workflows/builder, connections, analytics/audit, team and settings. The after command must run against the rebuilt bundle. These measurements do not represent browser hydration or full client transitions. The current read-only browser surface exposes no Performance API; that measurement limitation must remain explicit. A modeled 120 ms RTT / 256 KiB/s case is an estimate, not browser network emulation.
 
 ## Implemented policy
 
@@ -24,7 +24,7 @@ Pure budget/network/route tests and component focus/hover/cancellation tests cov
 
 ## Measured bundle comparison
 
-The initial Phase 12 comparison used twelve routes, one process-cold HTML request and three warm HTML requests each, concurrency one. These are HTTP/document measurements, not hydrated client navigation timings. Private JSON artifacts preserve both runs under the ignored Phase 12 audit directory.
+The initial intent-navigation comparison used twelve routes, one process-cold HTML request and three warm HTML requests each, concurrency one. These are HTTP/document measurements, not hydrated client navigation timings. Private JSON artifacts preserve both runs under the ignored local performance audit directory.
 
 | Initial scripts | Before raw / estimated gzip bytes | After raw / estimated gzip bytes |
 | --- | --- | --- |

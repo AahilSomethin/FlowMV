@@ -1,6 +1,6 @@
 # Repository inventory
 
-Inventory on 2026-11-05 of tracked and nonignored project files. Dependencies, generated builds, environment files, QA databases and private evidence are excluded. The Phase 12 initial snapshot preserves hashes for 693 existing files. These counts describe source, not acceptance; generation and subsequent edits can change them.
+Inventory on 2026-11-05 of tracked and nonignored project files. Dependencies, generated builds, environment files, QA databases and private evidence are excluded. The engineering-acceptance initial snapshot preserves hashes for 693 existing files. These counts describe source, not acceptance; generation and subsequent edits can change them.
 
 | Area | Files |
 | --- | --- |
@@ -22,7 +22,7 @@ Inventory on 2026-11-05 of tracked and nonignored project files. Dependencies, g
 | Launch/validation scripts | 12 |
 | Container source | 8 |
 
-API routes remain compatible; see the [generated route table](../api/routes.md). Phase 12 adds operational CLI commands, security headers and intent navigation, not new public product endpoints or registry versions.
+API routes remain compatible; see the [generated route table](../api/routes.md). Final engineering work adds operational CLI commands, security headers and intent navigation, not new public product endpoints or registry versions.
 
 ## Markdown authority
 
@@ -31,12 +31,12 @@ API routes remain compatible; see the [generated route table](../api/routes.md).
 | Root README and docs/README.md | Current onboarding and central index |
 | Backend/frontend README | Current pointers; supersede former framework boilerplate |
 | Current category guides and diagrams | Authoritative description of implemented code; acceptance ledger distinguishes unverified procedures |
-| Phase 8, 8.5, 9B, 9C, 9D and foundation reports | Historical evidence preserved at original paths; archive index names current replacements |
+| Product audit through communications acceptance and foundation reports | Historical evidence preserved at original paths; [archive index](../archive/README.md) names current replacements |
 | Database access, cache/limits, snapshot retention | Active subject references linked by current runbooks |
-| Phase 10/11 acceptance | Historical results; current release evidence is Phase 12 |
-| Phase 12 acceptance and current UX register | Current findings, executed checks and remaining gates |
+| Showcase and AI/Go acceptance | Historical results; current engineering ledger is [final acceptance](../archive/phase12-final-acceptance.md) |
+| Final engineering acceptance and UX register | Current findings, executed checks and remaining gates |
 | Backend/frontend AGENTS.md | Repository development instructions; not product documentation |
-| Missing Phase 1–7 reports | Missing historical evidence; no reconstructed acceptance claims |
+| Missing early-phase reports | Missing historical evidence; no reconstructed acceptance claims |
 | Vendor/dependency/generated Markdown | External tooling/framework material; not replaced by application guides |
 
 The repository has no established project license. Dependency licenses are not a substitute. No historical report was moved, reset or relabeled as current evidence.

@@ -1,4 +1,4 @@
-# Phase 12 navigation and operations
+# Intent navigation, release candidate and recovery
 
 ```mermaid
 sequenceDiagram
@@ -49,4 +49,4 @@ flowchart TB
   External[Pending encrypted file key offsite and PITR rehearsal] -.-> Restore
 ```
 
-Solid paths are implemented local staging behavior; dashed paths are external production gates. The rehearsal never restores over the source or showcase databases. See the [readiness checklist](../operations/production-readiness-checklist.md).
+Solid paths are implemented local staging behavior; dashed paths are external production gates. The rehearsal never restores over the source or showcase databases. See the [readiness checklist](../operations/production-readiness-checklist.md). Engineering acceptance evidence for these diagrams is recorded in the [final acceptance ledger](../archive/phase12-final-acceptance.md).

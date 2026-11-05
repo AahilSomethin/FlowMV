@@ -11,6 +11,8 @@ flowchart LR
     NativeAPI --> NativeDB[(Loopback PostgreSQL 55490)]
     NativeWorker[Worker and scheduler] --> NativeDB
     NativeWorker --> NativeFiles[Ignored encrypted private storage]
+    NativeAPI -->|localhost 8020| NativeGo[Private Go AI]
+    NativeWorker --> NativeGo
   end
   Browser -->|localhost 3011| Web[Compose web]
   Browser -->|localhost 8011| API[Compose API]
@@ -22,14 +24,17 @@ flowchart LR
       Worker[Worker] --> PG
       Scheduler[Scheduler] --> PG
       Init[Guarded initialize service] --> PG
+      Go[Private Go AI - no host port]
     end
     API --> PG
+    API --> Go
     API --> Files[Owned private volume]
     Worker --> Files
+    Worker --> Go
   end
 ```
 
-Both profiles require simulated providers and array mail. Web/API additionally join the ingress bridge for IPv4/IPv6 loopback port publication; workers and database remain on the private network. Container walkthrough acceptance is a separate result from configuration existing in source.
+Both profiles require simulated providers and array mail. Web/API additionally join the ingress bridge for IPv4/IPv6 loopback port publication; workers, database and Go remain on the private network in Compose. Native Go listens on loopback port 8020. Container walkthrough acceptance is a separate result from configuration existing in source. See [AI processing](ai-processing.md) for the trust boundary.
 
 ## Proposed production components — not deployed or verified
 
@@ -40,8 +45,10 @@ flowchart LR
   TLS --> Laravel[Supervised Laravel application]
   Laravel --> DB[(Restricted PostgreSQL runtime role)]
   Laravel --> Secrets[Protected secret management]
+  Laravel --> GoProd[Private Go AI with TLS]
   Workers[Supervised workers and scheduler] --> DB
   Workers --> Private[Encrypted private storage]
+  Workers --> GoProd
   Workers --> Scanner[Verified scanner and isolated PDF runtime]
   Backup[Protected backup and recovery system] --> DB
   Backup --> Private

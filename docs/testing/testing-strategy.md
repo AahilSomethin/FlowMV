@@ -1,6 +1,6 @@
 # Testing and acceptance
 
-Use focused tests while implementing, then run final checks **sequentially**, recording failures and reruns. The [Phase 10 ledger](../phase10-acceptance.md) is the result source; commands listed here are instructions, not an assertion that they passed.
+Use focused tests while implementing, then run final checks **sequentially**, recording failures and reruns. Historical showcase results are recorded in the [product and showcase acceptance](../archive/phase10-acceptance.md) report; the current engineering ledger is [final acceptance](../archive/phase12-final-acceptance.md). Commands listed here are instructions, not an assertion that they passed.
 
 ## Backend and PostgreSQL
 
@@ -14,7 +14,7 @@ php vendor/bin/pint --dirty --format agent
 
 The ordinary suite uses isolated SQLite with production transports disabled. The PostgreSQL suite is guarded to loopback `flowmv_phase85_test` on port 55485 and refuses wrong/hosted targets before migration. It tests actual locking/concurrency and PostgreSQL constraints. Preserve its existing private profile evidence before rerunning; never reset a QA or hosted database to satisfy a test. Existing QA datasets are not PHPUnit's database. If the guarded PostgreSQL server is unavailable, report a skip/blocker rather than treating SQLite as equivalent.
 
-Focused Phase 10 files cover template authorization/valid definitions, draft-only instantiation, safe structural comparisons, provenance/privacy and preview. Preview tests forbid vault decryption, transport invocation, jobs, mail and domain/audit records even with configured synthetic ciphertext and live-mode flags. They cover stale grants, tenant/role denial and bounded revision traces. Regression coverage of published V1/V2/V3, webhook forgery/replay, concurrent decisions and revocation remains mandatory.
+Focused showcase and authoring tests cover template authorization/valid definitions, draft-only instantiation, safe structural comparisons, provenance/privacy and preview. Preview tests forbid vault decryption, transport invocation, jobs, mail and domain/audit records even with configured synthetic ciphertext and live-mode flags. They cover stale grants, tenant/role denial and bounded revision traces. Regression coverage of published V1/V2/V3/V4, webhook forgery/replay, concurrent decisions and revocation remains mandatory.
 
 ## Frontend and production build
 
@@ -47,10 +47,10 @@ Check visible labels, keyboard tab/escape behavior, focus restoration after dial
 
 Run local links and Mermaid renders through the development-only tooling described in the [documentation index](../README.md). Inspect rendered SVGs. Archive reports remain at their original paths. Missing historical evidence stays missing; never reconstruct pass counts from memory.
 
-## Phase 11
+## Go and advisory AI
 
-Run `go test ./...` and `go vet ./...` in `services/ai-go`. Run the digest-pinned Linux QA image target for CGO race checks: `docker build --target qa -f docker/demo/ai-go.Dockerfile -t flowmv-phase11-go-qa .`. Native Windows race checking requires a C compiler; Linux QA is the verified alternative. Focused Laravel AI tests cover transport signing, personal privacy, encrypted results, revocation, retention, canonical JSON and pinned execution. The guarded PostgreSQL suite adds two-process AI reservation and worker claiming. Frontend AI tests cover disclosure, privacy and focus. Final results belong in the [Phase 11 ledger](../phase11-ai-go-acceptance.md), not historical reports.
+Run `go test ./...` and `go vet ./...` in `services/ai-go`. Run the digest-pinned Linux QA image target for CGO race checks: `docker build --target qa -f docker/demo/ai-go.Dockerfile -t flowmv-phase11-go-qa .`. Native Windows race checking requires a C compiler; Linux QA is the verified alternative. Focused Laravel AI tests cover transport signing, personal privacy, encrypted results, revocation, retention, canonical JSON and pinned execution. The guarded PostgreSQL suite adds two-process AI reservation and worker claiming. Frontend AI tests cover disclosure, privacy and focus. Simulated AI acceptance results belong in the [AI and Go acceptance](../archive/phase11-ai-go-acceptance.md) ledger.
 
-## Phase 12 checks
+## Engineering and staging checks
 
-See the [current acceptance ledger](../phase12-final-acceptance.md). Run `node --test scripts/staging-guards.test.mjs` from root and follow the isolated staging commands in the [production checklist](../operations/production-readiness-checklist.md). Axe 4.14.0 checks rendered login/error/dialog semantics; keyboard tests check focus and dismissal. Opaque theme-token contrast tests cover specified text and control pairs, not every rendered/composited state. Browser screen-reader, zoom/motion and device limitations must remain explicit. Go govulncheck uses pinned development tool v1.9.0; formatter runs used Prettier 3.9.10 without adding a runtime dependency.
+See the [engineering acceptance ledger](../archive/phase12-final-acceptance.md). Run `node --test scripts/staging-guards.test.mjs` from root and follow the isolated staging commands in the [production checklist](../operations/production-readiness-checklist.md). Axe 4.14.0 checks rendered login/error/dialog semantics; keyboard tests check focus and dismissal. Opaque theme-token contrast tests cover specified text and control pairs, not every rendered/composited state. Browser screen-reader, zoom/motion and device limitations must remain explicit. Go govulncheck uses pinned development tool v1.9.0; formatter runs used Prettier 3.9.10 without adding a runtime dependency.

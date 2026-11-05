@@ -22,8 +22,13 @@ flowchart TD
   Due -->|Authorized resume job| Run
   Kind -->|External action| Outbox[Authorized encrypted action outbox]
   Outbox --> Run
+  Kind -->|Advisory AI| AiQueue[Queue signed Go analysis by IDs]
+  AiQueue --> AiResult[Laravel validates advice and encrypted result]
+  AiResult --> AiBranch[Version-pinned configured AI outcome]
+  AiBranch -->|Human review or revision| Task
+  AiBranch -->|Continue automatic path| Run
   Kind -->|End| End
   Run -->|Invalid runtime state| Fail[Safe failed status and audit event]
 ```
 
-The action outbox has a separate delivery lifecycle. A completed request does not guarantee recipient delivery.
+The action outbox has a separate delivery lifecycle. A completed request does not guarantee recipient delivery. Advisory AI never decides for the organization; Laravel retains authorization and human decisions.

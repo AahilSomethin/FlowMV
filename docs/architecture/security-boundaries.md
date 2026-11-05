@@ -17,7 +17,7 @@ Sanctum sessions remain authoritative. Browser writes require the stateful front
 
 Connection ownership is distinct from use. Organization ownership does not grant every member service access. Credentials are encrypted by `CredentialVault` using separately managed versioned keys. Responses, workflow definitions, exports, logs and diagnostics must never contain decrypted tokens or private message bodies. Safe references are UUIDs; authorization must still be rechecked at runtime, including retries.
 
-Phase 10 connection overview hides another member's personal credentials, including from organization administrators. New successful-operation evidence is `simulated` or `provider_response`; missing historical provenance remains `unknown`. Status does not prove liveness. Provider acceptance does not establish recipient delivery.
+The connection overview hides another member's personal credentials, including from organization administrators. New successful-operation evidence is `simulated` or `provider_response`; missing historical provenance remains `unknown`. Status does not prove liveness. Provider acceptance does not establish recipient delivery.
 
 The demo guard verifies environment, exact connection target, actual PostgreSQL database/user/address/owner, secret installation marker and all simulated transports before accepting synthetic setup. Native uses a dedicated cluster; container mode resolves its private `postgres` service. The local owner role is intentionally privileged for isolated installation and migrations, and is **not** evidence of production least privilege. See the existing [database access restrictions](../database-access.md).
 

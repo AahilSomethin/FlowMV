@@ -1,6 +1,6 @@
 # Integrations and connector development
 
-The vault and authorization foundation precede provider execution. Telegram, Gmail/Outlook email, Slack and Twilio SMS have provider-specific services, bounded operations, ingress verification and durable outboxes. Actual acceptance maturity is recorded in the unchanged [Phase 9B](../phase9b-telegram-acceptance.md), [9C](../phase9c-email-document-acceptance.md) and [9D](../phase9d-communication-acceptance.md) reports. Phase 10 showcase traffic is simulated. No live-provider claim follows from a successful local test.
+The vault and authorization foundation precede provider execution. Telegram, Gmail/Outlook email, Slack and Twilio SMS have provider-specific services, bounded operations, ingress verification and durable outboxes. Simulated acceptance maturity is recorded in the historical [Telegram](../archive/phase9b-telegram-acceptance.md), [email and documents](../archive/phase9c-email-document-acceptance.md) and [communications](../archive/phase9d-communication-acceptance.md) reports. Primary guide: [Workflows & integrations](../workflows-and-integrations.md). Showcase traffic is simulated. No live-provider claim follows from a successful local test.
 
 ## Credential lifecycle
 
@@ -36,6 +36,6 @@ Gmail/Outlook require provider-console OAuth registration, exact redirect URLs a
 
 Use the `Connector` interface and neighboring provider services as the contract: credential requirements, available triggers/actions, explicit configuration schema, validation, webhook verification, rate/retry policy and safe audit metadata. Restrict hosts and endpoints in provider-owned transport code. Never add an unrestricted HTTP node, arbitrary base URL or arbitrary code execution. Keep OAuth callbacks single-use and session/organization bound. Separate owner policy, provider approval, workflow grant and destination authorization; recheck all at job execution. Add deduplication, bounded leases/timeouts, ambiguous-delivery handling and recovery tests before UI activation. Use fake transports first, then independent real-provider verification. Do not log secrets or message bodies. Do not silently upgrade published contracts.
 
-## Phase 11 AI
+## Advisory AI
 
 [OpenAI/Gemini setup, ownership, data policy and corrections](ai.md) describes the optional advisory integration. Live-provider verification remains pending.

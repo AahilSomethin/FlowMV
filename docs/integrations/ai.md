@@ -1,6 +1,6 @@
 # OpenAI and Gemini connections
 
-AI advice is optional and never an approval. The browser calls Laravel; Laravel authorizes and minimizes the source, reserves usage and sends a signed request to private Go. Go uses only the configured OpenAI or Gemini adapter. Read the [architecture](../architecture/go-service.md), [API contracts](../api/ai.md) and current [acceptance ledger](../phase11-ai-go-acceptance.md).
+AI advice is optional and never an approval. The browser calls Laravel; Laravel authorizes and minimizes the source, reserves usage and sends a signed request to private Go. Go uses only the configured OpenAI or Gemini adapter. Read the [architecture guide](../architecture.md), [Go service](../architecture/go-service.md), [API contracts](../api/ai.md) and [acceptance ledger](../archive/phase11-ai-go-acceptance.md).
 
 ## Website setup
 
