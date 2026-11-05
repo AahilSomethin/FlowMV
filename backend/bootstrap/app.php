@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\PreventPrivateCaching;
 use App\Http\Middleware\ProtectIntegrationRequests;
 use App\Http\Middleware\RedactInvitationToken;
 use App\Http\Middleware\RequireStatefulFrontend;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         $middleware->throttleApi();
         $middleware->api(prepend: [
+            PreventPrivateCaching::class,
             ProtectIntegrationRequests::class,
             RedactInvitationToken::class,
         ]);

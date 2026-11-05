@@ -9,7 +9,18 @@ use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowDraft;
 use App\Models\WorkflowVersion;
+use App\Services\AI\AiNodes;
+use App\Services\AI\AiWorkflow;
+use App\Services\Integrations\EmailNodes;
+use App\Services\Integrations\EmailWorkflow;
 use App\Services\Integrations\IntegrationRuntime;
+use App\Services\Integrations\SlackNodes;
+use App\Services\Integrations\SlackWorkflow;
+use App\Services\Integrations\SmsNodes;
+use App\Services\Integrations\SmsWorkflow;
+use App\Services\Integrations\TelegramDecisions;
+use App\Services\Integrations\TelegramNodes;
+use App\Services\Integrations\TelegramWorkflow;
 use App\Services\Workflows\Nodes\NodeRegistry;
 use App\Services\Workflows\WorkflowDefinitionNormalizer;
 use App\Services\Workflows\WorkflowDefinitionValidator;
@@ -57,9 +68,36 @@ class PublishWorkflow
 
             $registryVersion = NodeRegistry::CURRENT;
             foreach ($normalized->graph['nodes'] as $node) {
+                if ($node['type'] === 'approval' && isset($node['data']['telegram_approval'])) {
+                    app(TelegramDecisions::class)->publication($locked->organization_id, $locked->id, $node);
+                    $registryVersion = NodeRegistry::V3;
+                }
+                if (in_array($node['type'], EmailNodes::TYPES, true)) {
+                    app(EmailWorkflow::class)->publication($locked->organization_id, $locked->id, $node);
+                    $registryVersion = NodeRegistry::V3;
+                }
                 if ($node['type'] === 'integration_action') {
                     app(IntegrationRuntime::class)->authorized($locked->organization_id, $locked->id, $node['data']);
                     $registryVersion = NodeRegistry::V3;
+                }
+                if (in_array($node['type'], TelegramNodes::TYPES, true)) {
+                    app(TelegramWorkflow::class)->validatePublication($locked->organization_id, $locked->id, $node);
+                    $registryVersion = NodeRegistry::V3;
+                }
+                if (in_array($node['type'], SmsNodes::TYPES, true)) {
+                    app(SmsWorkflow::class)->publication($locked->organization_id, $locked->id, $node);
+                    $registryVersion = NodeRegistry::V3;
+                }
+                if (in_array($node['type'], SlackNodes::TYPES, true)) {
+                    app(SlackWorkflow::class)->validatePublication($locked->organization_id, $locked->id, $node);
+                    $registryVersion = NodeRegistry::V3;
+                }
+            }
+
+            foreach ($normalized->graph['nodes'] as $node) {
+                if (isset(AiNodes::OPERATIONS[$node['type']])) {
+                    app(AiWorkflow::class)->publication($user->id, $locked->organization_id, $locked->id, $node);
+                    $registryVersion = NodeRegistry::V4;
                 }
             }
 
@@ -82,6 +120,9 @@ class PublishWorkflow
                 'current_published_version_id' => $version->id,
                 'status' => WorkflowStatus::Published,
             ])->save();
+            app(TelegramWorkflow::class)->subscribe($user, $locked, $version);
+            app(SlackWorkflow::class)->subscribe($user, $locked, $version);
+            app(EmailWorkflow::class)->subscribe($user, $locked, $version);
 
             $draft->forceFill([
                 'graph_definition' => $normalized->graph,

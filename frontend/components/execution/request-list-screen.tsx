@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { useSearchParams } from "next/navigation";
 import { Inbox } from "lucide-react";
 import { InstanceStatusBadge } from "@/components/execution/status-badge";

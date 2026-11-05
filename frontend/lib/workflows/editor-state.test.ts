@@ -12,6 +12,26 @@ import {
 } from "@/lib/workflows/editor-state";
 
 describe("workflow editor state", () => {
+  it("supports bounded revision returns to AI review as an undoable graph change",()=>{
+    let state=createEditorState({nodes:[],edges:[]},{fields:[]},1);
+    state=addWorkflowNode(state,"revision",{x:0,y:0},"revision");
+    state=addWorkflowNode(state,"ai_field_extraction",{x:300,y:0},"ai");
+    const next=connectNodes(state,{source:"revision",target:"ai",sourceHandle:"return",id:"edge"});
+    expect(next.edges[0].target).toBe("ai");
+    expect(next.nodes[0].data.return_to_node_id).toBe("ai");
+    expect(undo(next).edges).toEqual([]);
+  });
+  it("replaces Start with a Telegram Trigger as one undoable change while preserving its outgoing edge", () => {
+    let state=createEditorState({nodes:[],edges:[]},{fields:[]},1);
+    state=addWorkflowNode(state,"start",{x:0,y:0},"entry");
+    state=addWorkflowNode(state,"end",{x:200,y:0},"end");
+    state=setWorkflowConnection(state,"entry","out","end");
+    const next=addWorkflowNode(state,"telegram_trigger",{x:400,y:0},"unused");
+    expect(next.nodes.filter(n=>n.type === "telegram_trigger")).toHaveLength(1);
+    expect(next.nodes[0].id).toBe("entry");
+    expect(next.edges).toEqual(state.edges);
+    expect(undo(next).nodes[0].type).toBe("start");
+  });
   it("replaces a connection as one undoable change and synchronizes revision targets", () => {
     let state = createEditorState({ nodes: [], edges: [] }, { fields: [] }, 1);
     state = addWorkflowNode(state, "revision", { x: 0, y: 0 }, "revision");

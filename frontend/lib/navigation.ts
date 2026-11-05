@@ -17,6 +17,7 @@ export function canLeaveCurrentPage(): boolean {
 
 const STATIC_PATHS = new Set<string>([
   ...WORKSPACE_NAV.map((item) => item.href),
+  "/workflows/templates",
   "/onboarding",
   "/invitations/accept",
 ]);

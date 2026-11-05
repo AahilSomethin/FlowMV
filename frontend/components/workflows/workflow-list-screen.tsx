@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { GitBranch } from "lucide-react";
 import { CreateWorkflowDialog } from "@/components/workflows/create-workflow-dialog";
 import { EmptyState } from "@/components/patterns/empty-state";
@@ -90,7 +90,7 @@ export function WorkflowListScreen() {
       <PageHeader
         title="Workflows"
         description="Design approval workflows for this workspace. Published versions stay available while a newer draft is in progress."
-        actions={canCreate ? <CreateWorkflowDialog organizationId={organizationId} /> : null}
+        actions={<><Button asChild variant="outline"><Link href="/workflows/templates">Explore templates</Link></Button>{canCreate ? <CreateWorkflowDialog organizationId={organizationId} /> : null}</>}
       />
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input

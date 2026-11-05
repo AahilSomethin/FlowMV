@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { ScrollText } from "lucide-react";
 import { WorkflowFilter } from "@/components/analytics/workflow-filter";
 import { AnalyticsNav, ScopeBanner } from "@/components/analytics/analytics-frame";
@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth";
 import { eventLabel, formatWhen } from "@/lib/execution";
 
 const eventTypes = [
+  "telegram_trigger_activated", "telegram_filter_evaluated", "telegram_queued", "telegram_sent", "telegram_delivery_failed",
   "instance_started",
   "condition_evaluated",
   "task_created",

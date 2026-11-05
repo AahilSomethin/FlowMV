@@ -6,10 +6,11 @@ const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async importOriginal => ({...await importOriginal<typeof import("@/lib/api")>(),api}));
 vi.mock("@/lib/auth",()=>({useAuth:()=>({user:{current_organization:{uuid:"workspace-a"}}})}));
 const catalog = {items:[],admin:false,mock_enabled:true,personal_connections_allowed:false,provider_approved:true,provider:{reads:"Synthetic event identifiers only.",sends:"No messages leave FlowMV."}};
+function mockCatalog(value:typeof catalog|Record<string,unknown>){api.mockImplementation((path:string)=>Promise.resolve(path.endsWith("/connections/overview")?{providers:[]}:value));}
 describe("connection permissions and credential handling",()=>{
-  beforeEach(()=>api.mockReset());
+  beforeEach(()=>{api.mockReset();});
   it("explains data access and disables personal creation when policy forbids it",async()=>{
-    api.mockResolvedValue(catalog);
+    mockCatalog(catalog);
     render(<ConnectionsScreen/>);
     await screen.findByText("What FlowMV can read");
     expect(screen.getByText("No messages leave FlowMV.")).toBeInTheDocument();
@@ -18,7 +19,7 @@ describe("connection permissions and credential handling",()=>{
   });
   it("requires confirmation before sending credentials and never renders saved secrets",async()=>{
     const user = userEvent.setup();
-    api.mockResolvedValue({...catalog,personal_connections_allowed:true});
+    mockCatalog({...catalog,personal_connections_allowed:true});
     render(<ConnectionsScreen/>);
     await screen.findByText("What FlowMV can read");
     fireEvent.change(screen.getByLabelText("Connection name"),{target:{value:"My mock"}});
@@ -36,7 +37,7 @@ describe("connection permissions and credential handling",()=>{
   });
   it("shows workflow access and routes permanent revocation through confirmation",async()=>{
     const user=userEvent.setup();
-    api.mockResolvedValue({...catalog,admin:true,items:[{id:"connection-a",name:"Review bot",ownership:"organization",status:"enabled",credential_type:"bot_token",workflows:[{workflow_id:"workflow-a",workflow_name:"Purchase review",operation:"mock.notify"}],destinations:["mock:review"]}]});
+    mockCatalog({...catalog,admin:true,items:[{id:"connection-a",name:"Review bot",ownership:"organization",status:"enabled",credential_type:"bot_token",workflows:[{workflow_id:"workflow-a",workflow_name:"Purchase review",operation:"mock.notify"}],destinations:["mock:review"]}]});
     render(<ConnectionsScreen/>);
     await screen.findByText("Review bot");
     expect(screen.getByText(/Purchase review/)).toBeInTheDocument();

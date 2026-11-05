@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { canLeaveCurrentPage } from "@/lib/navigation";
 import { LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

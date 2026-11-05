@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import "./shadcn.css";
 
 @custom-variant dark {
   &:where(.dark, .dark *) {
@@ -83,12 +83,12 @@
   --muted-foreground: oklch(0.48 0.025 260);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.51 0.18 27.325);
   --status-success: oklch(0.52 0.12 145);
   --status-warning: oklch(0.47 0.10 65);
   --status-neutral: oklch(0.55 0.03 250);
   --border: oklch(0.90 0.012 260);
-  --input: oklch(0.86 0.015 260);
+  --input: oklch(0.64 0.015 260);
   --ring: oklch(0.546 0.215 277.1);
   --chart-1: var(--primary);
   --chart-2: var(--node-assignment);
@@ -139,7 +139,7 @@
   --status-warning: oklch(0.82 0.11 85);
   --status-neutral: oklch(0.75 0.03 250);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --input: oklch(0.64 0.015 260);
   --ring: oklch(0.72 0.15 277);
   --chart-1: var(--primary);
   --chart-2: var(--node-assignment);
@@ -186,7 +186,7 @@
     --status-warning: oklch(0.82 0.11 85);
     --status-neutral: oklch(0.75 0.03 250);
     --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
+    --input: oklch(0.64 0.015 260);
     --ring: oklch(0.72 0.15 277);
     --sidebar: oklch(0.22 0.02 260);
     --sidebar-foreground: oklch(0.985 0 0);
@@ -255,3 +255,7 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+.workflow-node[data-node-type$="_trigger"] { --node-accent: var(--node-start); }
+.workflow-node[data-node-type$="_filter"], .workflow-node[data-node-type="document_validation"] { --node-accent: var(--node-condition); }
+.workflow-node[data-node-type$="_notification"], .workflow-node[data-node-type$="_send_message"], .workflow-node[data-node-type="email_send"], .workflow-node[data-node-type="email_reply"] { --node-accent: var(--node-notification); }

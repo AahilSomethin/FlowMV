@@ -22,7 +22,7 @@ export function DecisionRecord({
       <h3 className="text-sm font-medium">
         {task.node_label ?? "Approval"} · {task.decision === "approved" ? "Approved" : "Rejected"}
       </h3>
-      {snapshot ? (
+      {snapshot === undefined ? <p className="text-sm text-muted-foreground">Open the full request history to review the decision-time snapshot. Task list previews omit it.</p> : snapshot ? (
         sameSubmission(current, snapshot.submitted_data) ? (
           <p className="text-sm text-muted-foreground">
             Reviewed at decision {formatWhen(snapshot.captured_at)}. It matches the current submission.

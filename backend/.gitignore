@@ -4,6 +4,11 @@
 .env.backup
 .env.production
 .env.phase85
+.env.phase9b
+.env.phase9c
+.env.phase9d
+.env.demo
+.env.demo.container
 .phpactor.json
 .phpunit.result.cache
 /.codex

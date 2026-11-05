@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { useParams } from "next/navigation";
 import { TaskDetail } from "@/components/execution/task-detail";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";

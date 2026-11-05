@@ -6,9 +6,10 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { api, ApiError, setUnauthorizedHandler, type User } from "@/lib/api";
+import { api, ApiError, invalidateApiSession, setUnauthorizedHandler, type User } from "@/lib/api";
 
 type AuthStatus = "loading" | "authenticated" | "guest" | "unreachable";
 
@@ -42,11 +43,18 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const sessionVersion = useRef(0);
+
+  const invalidate = useCallback(() => {
+    invalidateApiSession();
+    return ++sessionVersion.current;
+  }, []);
 
   const markGuest = useCallback(() => {
+    invalidate();
     setUser(null);
     setStatus("guest");
-  }, []);
+  }, [invalidate]);
 
   useEffect(() => {
     setUnauthorizedHandler(markGuest);
@@ -56,10 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    const version = sessionVersion.current;
 
     api<User>("/api/v1/me")
       .then((current) => {
-        if (!active) {
+        if (!active || version !== sessionVersion.current) {
           return;
         }
 
@@ -67,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStatus("authenticated");
       })
       .catch((error: unknown) => {
-        if (!active) {
+        if (!active || version !== sessionVersion.current) {
           return;
         }
 
@@ -85,38 +94,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [markGuest]);
 
   const login = useCallback(async (input: { email: string; password: string }) => {
+    const version = invalidate();
     const current = await api<User>("/api/v1/auth/login", {
       method: "POST",
       body: JSON.stringify(input),
     });
 
+    if (version !== sessionVersion.current) return;
     setUser(normalizeUser(current));
     setStatus("authenticated");
-  }, []);
+  }, [invalidate]);
 
   const register = useCallback(async (input: RegisterInput) => {
+    const version = invalidate();
     const current = await api<User>("/api/v1/auth/register", {
       method: "POST",
       body: JSON.stringify(input),
     });
 
+    if (version !== sessionVersion.current) return;
     setUser(normalizeUser(current));
     setStatus("authenticated");
-  }, []);
+  }, [invalidate]);
 
   const applySession = useCallback((current: User) => {
+    invalidate();
     setUser(normalizeUser(current));
     setStatus("authenticated");
-  }, []);
+  }, [invalidate]);
 
   const refresh = useCallback(async () => {
+    const version = sessionVersion.current;
     try {
       const current = normalizeUser(await api<User>("/api/v1/me"));
+      if (version !== sessionVersion.current) return current;
       setUser(current);
       setStatus("authenticated");
 
       return current;
     } catch (error) {
+      if (version !== sessionVersion.current) throw error;
       if (error instanceof ApiError && error.status === 401) {
         markGuest();
       } else {
@@ -128,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [markGuest]);
 
   const logout = useCallback(async () => {
+    invalidate();
     try {
       await api<void>("/api/v1/auth/logout", { method: "POST" });
       markGuest();
@@ -139,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       throw error;
     }
-  }, [markGuest]);
+  }, [markGuest, invalidate]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -158,8 +176,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     document.addEventListener("visibilitychange", onVisibility);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        lastRefresh = Date.now();
+        void refresh().catch(() => undefined);
+      }
+    }, 60_000);
 
-    return () => document.removeEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [refresh, status]);
 
   const value = useMemo(

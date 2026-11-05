@@ -1,3 +1,4 @@
+import {AI_NODES,isAiNode} from "@/lib/ai";
 import type {
   ConditionOperator,
   FieldType,
@@ -29,6 +30,11 @@ export function emptyForm(): FormDefinition {
 
 export function defaultNodeData(type: NodeType): WorkflowNodeData {
   const labels: Record<NodeType, string> = {
+    ...Object.fromEntries(Object.entries(AI_NODES).map(([key,value])=>[key,value.title])) as Record<import("@/lib/ai").AiNodeType,string>,
+    email_trigger: "Email Trigger", email_filter: "Email Filter", email_send: "Email Send", email_reply: "Email Reply", attachment_inspector: "Attachment Inspector", document_validation: "Document Validation",
+    sms_notification: "SMS Notification", sms_send_message: "SMS Send Message",
+    slack_trigger: "Slack Trigger", slack_filter: "Slack Message Filter", slack_send_message: "Slack Send Message", slack_notification: "Slack Notification",
+    telegram_trigger: "Telegram Trigger", telegram_filter: "Telegram Filter", telegram_send_message: "Telegram Send Message", telegram_notification: "Telegram Notification",
     start: "Start",
     approval: "Approval",
     condition: "Condition",
@@ -40,6 +46,16 @@ export function defaultNodeData(type: NodeType): WorkflowNodeData {
     integration_action: "Connected action",
   };
   const base: WorkflowNodeData = { label: labels[type], description: "" };
+  if (isAiNode(type)) return {...base,connection_id:"",source_kind: type === "ai_email_analysis" ? "email" : type === "ai_document_analysis" ? "document" : type === "ai_slack_analysis" ? "slack" : "request",document_field:null,field_map:{},configuration:{input_fields:[],fields:[],categories:[],routes:[],data_categories:[]}};
+  if (type === "email_trigger") return {...base, connection_id:"", input_mapping:{}, rules:[], match:"all"};
+  if (type === "email_filter") return {...base, rules:[{field:"subject",operator:"contains",value:"application"}], match:"all"};
+  if (type === "attachment_inspector") return {...base, require_attachments:true};
+  if (type === "document_validation") return {...base, template_id:"", document_fields:[], field_map:{}, require_document:true};
+  if (type === "email_send" || type === "email_reply") return {...base, connection_id:"", destination:"", ...(type === "email_send" ? {subject:"Request update"}:{}), text:"Request {{request.uuid}}: {{request.status}}\n{{request.link}}", allowed_field_ids:[]};
+  if (type.startsWith("sms_")) return {...base,connection_id:"",sender_id:"",recipient_id:"",template_id:""};
+  if (type === "telegram_trigger" || type === "slack_trigger") return {...base,connection_id:"",destination:"",input_mapping:{}};
+  if (type === "telegram_filter" || type === "slack_filter") return {...base,filter_field:"command",match_mode:"equals",match_value:"/request"};
+  if (type === "telegram_send_message" || type === "telegram_notification" || type === "slack_send_message" || type === "slack_notification") return {...base,connection_id:"",destination:"",text:"Request {{request.uuid}}: {{approval.decision}}",allowed_field_ids:[]};
 
   if (type === "integration_action") {
     return { ...base, connection_id: "", operation: "mock.notify", destination: "mock:inbox" };
@@ -118,6 +134,49 @@ export function validateDefinition(graph: GraphDefinition, form: FormDefinition)
   const fields = new Map(form.fields.map((field) => [field.id, field]));
 
   for (const node of nodes) {
+    if (isAiNode(node.type) && (!node.data.connection_id || !node.data.configuration?.data_categories.length || (node.data.source_kind === "request" && !node.data.configuration?.input_fields.length))) violations.push(violation("ai_config", "Choose an approved AI connection, permitted data categories and source fields.", node.id));
+    if (["email_trigger", "email_filter", "email_send", "email_reply", "attachment_inspector", "document_validation"].includes(node.type)) {
+      if (["email_filter", "email_reply", "attachment_inspector", "document_validation"].includes(node.type) && !nodes.some(n=>n.type === "email_trigger")) violations.push(violation("email_trigger", "This step needs an Email Trigger.", node.id));
+      if (["email_trigger", "email_send", "email_reply"].includes(node.type) && !node.data.connection_id) violations.push(violation("email_connection", "Choose an approved mailbox with a workflow permission.", node.id));
+      if (node.type === "email_trigger" && form.fields.some(f=>f.required)) violations.push(violation("email_fields", "Keep request form fields optional; Document Validation checks required information so corrections can be requested.", node.id));
+      if (node.type === "email_filter" && !node.data.rules?.length) violations.push(violation("email_rules", "Add a message rule.", node.id));
+      if (["email_send", "email_reply"].includes(node.type) && (!node.data.destination || !node.data.text?.trim() || (node.type === "email_send" && !node.data.subject?.trim()))) violations.push(violation("email_action", "Choose an approved recipient and write the message.", node.id));
+      if (node.type === "document_validation" && (!node.data.template_id || !node.data.document_fields?.length || node.data.document_fields.some(f=>f.type !== "supporting_document" && !fields.has(node.data.field_map?.[f.id] ?? "")))) violations.push(violation("document_mapping", "Choose a template and map every document field to a request answer.", node.id));
+    }
+    if (node.type === "approval" && node.data.telegram_approval && (!node.data.telegram_approval.connection_id || !/^[0-9]{1,20}$/.test(node.data.telegram_approval.destination))) violations.push(violation("telegram_approval", "Choose an approved bot and a confirmed reviewer private chat.", node.id));
+    if (node.type.startsWith("telegram_")) {
+      if (node.type === "telegram_filter") {
+        if (!node.data.match_value || !nodes.some(n=>n.type === "telegram_trigger")) violations.push(violation("telegram_filter", "Choose a filter value and use a Telegram Trigger.", node.id));
+      } else {
+        if (!node.data.connection_id || !/^-?[0-9]{1,20}$/.test(node.data.destination ?? "")) violations.push(violation("telegram_connection", "Choose an approved Telegram bot and chat.", node.id));
+        if (node.type === "telegram_trigger") {
+          for (const field of form.fields) if (field.required && !node.data.input_mapping?.[field.id]) violations.push(violation("telegram_mapping", "Map every required request answer.", node.id, null, field.id));
+        } else {
+          if (!node.data.text?.trim()) violations.push(violation("telegram_message", "Write the Telegram message.", node.id));
+          for (const match of (node.data.text ?? "").matchAll(/\{\{([^}]+)\}\}/g)) {
+            const key=match[1];
+            if (!["request.uuid","request.status","approval.decision"].includes(key) && !(key.startsWith("input.") && node.data.allowed_field_ids?.includes(key.slice(6)))) violations.push(violation("telegram_variable", "Use only the listed safe variables and permitted request answers.", node.id));
+          }
+        }
+      }
+    }
+    if (node.type.startsWith("sms_") && (!node.data.connection_id || !node.data.sender_id || !node.data.recipient_id || !node.data.template_id)) violations.push(violation("sms_config", "Select the approved SMS connection, sender, recipient and template.", node.id));
+    if (node.type.startsWith("slack_")) {
+      if (node.type === "slack_filter") {
+        if (!node.data.match_value || !nodes.some(n=>n.type === "slack_trigger")) violations.push(violation("slack_filter", "Choose a filter value and use a Slack Trigger.", node.id));
+      } else {
+        if (!node.data.connection_id || !/^[CG][A-Z0-9]{8,30}$/.test(node.data.destination ?? "")) violations.push(violation("slack_connection", "Choose an approved Slack bot and chat.", node.id));
+        if (node.type === "slack_trigger") {
+          for (const field of form.fields) if (field.required && !node.data.input_mapping?.[field.id]) violations.push(violation("slack_mapping", "Map every required request answer.", node.id, null, field.id));
+        } else {
+          if (!node.data.text?.trim()) violations.push(violation("slack_message", "Write the Slack message.", node.id));
+          for (const match of (node.data.text ?? "").matchAll(/\{\{([^}]+)\}\}/g)) {
+            const key=match[1];
+            if (!["request.uuid","request.status","approval.decision"].includes(key) && !(key.startsWith("input.") && node.data.allowed_field_ids?.includes(key.slice(6)))) violations.push(violation("slack_variable", "Use only the listed safe variables and permitted request answers.", node.id));
+          }
+        }
+      }
+    }
     if (!node.data.label.trim()) {
       violations.push(violation("incomplete_config", "Give this node a label.", node.id));
     }
@@ -135,7 +194,7 @@ export function validateDefinition(graph: GraphDefinition, form: FormDefinition)
     }
 
     if (node.type === "condition") {
-      const rules = node.data.rules ?? [];
+      const rules = (node.data.rules ?? []) as import("@/lib/workflows/types").ConditionRule[];
 
       if (rules.length === 0) {
         violations.push(violation("incomplete_config", "Add at least one condition rule.", node.id));
@@ -243,7 +302,7 @@ export function validateDefinition(graph: GraphDefinition, form: FormDefinition)
     }
   }
 
-  const starts = nodes.filter((node) => node.type === "start");
+  const starts = nodes.filter((node) => node.type === "start" || node.type === "telegram_trigger" || node.type === "email_trigger" || node.type === "slack_trigger");
   const ends = nodes.filter((node) => node.type === "end");
 
   if (starts.length !== 1) {
@@ -266,7 +325,7 @@ export function validateDefinition(graph: GraphDefinition, form: FormDefinition)
       continue;
     }
 
-    if (!SOURCE_HANDLES[source.type].includes(edge.source_handle) || target.type === "start") {
+    if (!SOURCE_HANDLES[source.type].includes(edge.source_handle) || target.type === "start" || target.type === "telegram_trigger" || target.type === "email_trigger" || target.type === "slack_trigger") {
       violations.push(violation("invalid_handle", "This connection is not a supported outcome.", source.id, edge.id));
       continue;
     }
@@ -372,8 +431,12 @@ function validateRevision(
   for (const edge of incoming) {
     const source = byId.get(edge.source);
 
-    if (!source || source.type !== "approval" || edge.source_handle !== "rejected") {
-      violations.push(violation("revision_structure", "Only an Approval rejection can enter a Revision node.", node.id, edge.id));
+    const correction = (entry: WorkflowEdge): boolean => {
+      const from = byId.get(entry.source);
+      return (from?.type === "approval" && entry.source_handle === "rejected") || (from?.type === "document_validation" && ["missing", "invalid", "unknown"].includes(entry.source_handle)) || (!!from && isAiNode(from.type) && ["missing","uncertain"].includes(entry.source_handle));
+    };
+    if (!source || !(correction(edge) || (source.type === "email_reply" && edges.filter(e=>e.target === source.id).length > 0 && edges.filter(e=>e.target === source.id).every(correction)))) {
+      violations.push(violation("revision_structure", "Enter Revision from an approval rejection or document correction path, optionally through one Email Reply.", node.id, edge.id));
     }
   }
 
@@ -392,7 +455,7 @@ function validateRevision(
     return;
   }
 
-  if (target.type !== "approval") {
+  if ((target.type !== "approval" && target.type !== "document_validation" && !isAiNode(target.type))) {
     violations.push(violation("revision_target", "A revision returns to an Approval node that comes before it.", node.id, returnEdge.id));
     return;
   }

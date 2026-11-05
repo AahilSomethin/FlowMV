@@ -30,6 +30,16 @@ return [
 
     'disks' => [
 
+        'integration_documents' => [
+            'driver' => 'local',
+            'root' => env('INTEGRATION_DOCUMENTS_ROOT', storage_path('app/integration-private')),
+            'visibility' => 'private',
+            'directory_visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

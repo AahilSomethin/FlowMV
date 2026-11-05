@@ -79,7 +79,7 @@ class PublishedGraph
         $starts = [];
 
         foreach ($this->nodes as $node) {
-            if (($node['type'] ?? null) === 'start') {
+            if (in_array($node['type'] ?? null, ['start', 'telegram_trigger', 'email_trigger', 'slack_trigger'], true)) {
                 $starts[] = $node['id'];
             }
         }

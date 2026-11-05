@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { ArrowLeft, CheckCheck, Save, Undo2, Redo2, Upload, Workflow, LayoutGrid } from "lucide-react";
 import { FormBuilder } from "@/components/workflows/form-builder";
 import { NodeInspector } from "@/components/workflows/node-inspector";
@@ -9,6 +9,7 @@ import { NodeConnections } from "@/components/workflows/node-connections";
 import { NodePalette } from "@/components/workflows/node-palette";
 import { UnsavedChangesGuard } from "@/components/workflows/unsaved-changes-guard";
 import { ValidationList } from "@/components/workflows/validation-list";
+import { WorkflowPreviewPanel } from "@/components/workflows/workflow-preview-panel";
 import { WorkflowCanvas } from "@/components/workflows/workflow-canvas";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";
 import { LoadingState } from "@/components/patterns/loading-state";
@@ -289,12 +290,13 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
             Back
           </Link>
         </Button>
-        <div className="min-w-0 flex-1"><p className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"><Workflow className="size-3" aria-hidden="true" />Workflow studio</p><h1 className="truncate text-sm font-semibold">{detail.name}</h1></div>
+        <div className="min-w-0 basis-[calc(100%_-_5rem)] flex-1 sm:basis-auto"><p className="mb-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"><Workflow className="size-3" aria-hidden="true" />Workflow studio</p><h1 className="break-words text-sm font-semibold sm:truncate" title={detail.name}>{detail.name}</h1></div>
         {!dirty ? <Badge variant="outline">Draft saved</Badge> : null}
         {dirty && editable ? <Badge variant="outline">Unsaved changes</Badge> : null}
         {detail.status === "published" && detail.has_unpublished_changes ? <Badge variant="secondary">Unpublished changes</Badge> : null}
         {editable ? (
           <>
+            {organizationId&&<WorkflowPreviewPanel organizationId={organizationId} workflowId={workflowId} graph={{nodes:state.nodes,edges:state.edges}} form={{fields:state.fields}}/>}
             <Button type="button" variant="ghost" size="sm" title="Arrange steps in a grid; undo to restore positions" onClick={() => setState((current) => current ? moveNodes(current, Object.fromEntries(current.nodes.map((node, index) => [node.id, { x: (index % 3) * 336, y: Math.floor(index / 3) * 360 }])), true) : current)}><LayoutGrid className="size-3.5" aria-hidden="true" />Tidy layout</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setState((current) => (current ? undo(current) : current))} disabled={state.past.length === 0}>
               <Undo2 className="size-3.5" aria-hidden="true" />Undo
@@ -463,7 +465,7 @@ export function WorkflowBuilder({ workflowId }: { workflowId: string }) {
           </div>
         </div>
       )}
-      <footer className="flex shrink-0 flex-wrap justify-between gap-2 border-t bg-card px-4 py-2 text-[11px] text-muted-foreground"><span>{state.nodes.length} steps · {state.edges.length} connections · {liveViolations.length ? `${liveViolations.length} checks need attention` : "Ready to validate"}</span><span>Draft edits apply to new requests after publication · Ctrl/⌘ Z to undo</span></footer>
+      <footer className="flex shrink-0 flex-wrap justify-between gap-2 border-t bg-card px-4 py-2 text-[11px] text-muted-foreground"><span>{state.nodes.length} steps · {state.edges.length} connections · {editable ? (liveViolations.length ? `${liveViolations.length} checks need attention` : "Ready to validate") : "Read-only preview"}</span><span>{editable ? "Draft edits apply to new requests after publication · Ctrl/⌘ Z to undo" : "Use a wider screen with authoring permission to edit."}</span></footer>
       <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

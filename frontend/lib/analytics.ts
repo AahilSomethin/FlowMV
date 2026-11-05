@@ -111,6 +111,7 @@ const STATUS_COLOR: Record<InstanceStatus, string> = {
   awaiting_approval: "var(--status-warning)",
   awaiting_revision: "var(--status-warning)",
   awaiting_assignment: "var(--status-warning)",
+  awaiting_ai:"var(--status-neutral)",
   awaiting_delay: "var(--status-neutral)",
   running: "var(--primary)",
 };

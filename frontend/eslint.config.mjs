@@ -10,6 +10,11 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     ".next-phase85*/**",
+    ".next-phase9c*/**",
+    ".next-phase9d*/**",
+    ".next-phase10*/**",
+    ".next-phase11*/**",
+    ".next-phase12*/**",
     ".next-integration-build/**",
     "out/**",
     "build/**",

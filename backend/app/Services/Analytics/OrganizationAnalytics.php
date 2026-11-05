@@ -9,6 +9,7 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowInstance;
+use App\Models\WorkflowTask;
 use App\Models\WorkflowVersion;
 use App\Services\Workflows\Execution\ApprovalEligibility;
 use App\Services\Workflows\Execution\NodeLabels;
@@ -327,7 +328,7 @@ class OrganizationAnalytics
     ): array {
         $rows = $this->instances($user, $organization, $from, $to, $workflowId, $status)
             ->join('workflows', 'workflows.id', '=', 'workflow_instances.workflow_id')
-            ->selectRaw("workflows.id as workflow_key, workflows.uuid as workflow_uuid, workflows.name as workflow_name, count(*) as started, sum(case when workflow_instances.status = 'completed' then 1 else 0 end) as completed, sum(case when workflow_instances.status = 'rejected' then 1 else 0 end) as rejected, sum(case when workflow_instances.status in ('running', 'awaiting_approval', 'awaiting_revision', 'awaiting_assignment', 'awaiting_delay') then 1 else 0 end) as in_progress, sum(case when workflow_instances.status = 'failed' then 1 else 0 end) as failed")
+            ->selectRaw("workflows.id as workflow_key, workflows.uuid as workflow_uuid, workflows.name as workflow_name, count(*) as started, sum(case when workflow_instances.status = 'completed' then 1 else 0 end) as completed, sum(case when workflow_instances.status = 'rejected' then 1 else 0 end) as rejected, sum(case when workflow_instances.status in ('running', 'awaiting_approval', 'awaiting_revision', 'awaiting_assignment', 'awaiting_delay', 'awaiting_ai') then 1 else 0 end) as in_progress, sum(case when workflow_instances.status = 'failed' then 1 else 0 end) as failed")
             ->groupBy('workflows.id', 'workflows.uuid', 'workflows.name')
             ->orderBy('workflows.name')
             ->limit(self::MAX_GROUPS + 1)
@@ -344,7 +345,7 @@ class OrganizationAnalytics
             $medians[(int) $median['workflow_id']] = $median;
         }
 
-        $rates = $this->instances($user, $organization, $from, $to, $workflowId, null)
+        $rates = $status === null ? $rows->keyBy(fn ($row) => (int) $row->getAttribute('workflow_key')) : $this->instances($user, $organization, $from, $to, $workflowId, null)
             ->selectRaw("workflow_instances.workflow_id as workflow_key, sum(case when workflow_instances.status = 'completed' then 1 else 0 end) as completed, sum(case when workflow_instances.status = 'rejected' then 1 else 0 end) as rejected")
             ->groupBy('workflow_instances.workflow_id')
             ->get()
@@ -511,7 +512,7 @@ class OrganizationAnalytics
     /**
      * Visible instances for task metrics. The date window is applied to the task, not the request start.
      *
-     * @return Builder<\App\Models\WorkflowTask>
+     * @return Builder<WorkflowTask>
      */
     private function tasks(User $user, Organization $organization, ?int $workflowId): Builder
     {
@@ -525,7 +526,7 @@ class OrganizationAnalytics
 
         $this->eligibility->constrainInstances($visible, $user, $organization);
 
-        return \App\Models\WorkflowTask::query()
+        return WorkflowTask::query()
             ->where('workflow_tasks.organization_id', $organization->id)
             ->whereIn('workflow_tasks.workflow_instance_id', $visible);
     }

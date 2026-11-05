@@ -1,0 +1,93 @@
+name: flowmv-phase10-demo
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: docker/demo/backend.Dockerfile
+  env_file: backend/.env.demo.container
+  volumes:
+    - demo_private:/app/backend/storage
+  networks: [demo]
+  init: true
+services:
+  ai-go:
+    build:
+      context: .
+      dockerfile: docker/demo/ai-go.Dockerfile
+      target: runtime
+    environment:
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY:?Use scripts/demo-container.mjs}
+      AI_LISTEN: 0.0.0.0:8020
+      AI_PRIVATE_CONTAINER: 'true'
+      AI_SIMULATED: 'true'
+      AI_DEMO_INSTALLATION: ${AI_DEMO_INSTALLATION:?Use scripts/demo-container.mjs}
+      AI_DEMO_DATABASE: flowmv_phase10_demo
+      GOMEMLIMIT: 192MiB
+      GOMAXPROCS: '2'
+    networks: [demo]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 2
+    stop_grace_period: 35s
+    healthcheck:
+      test: [CMD, /ai-go, --healthcheck]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+  postgres:
+    image: postgres:18.0-bookworm@sha256:3f55f8895c4ed50603e2fbdfc72fffeeaba3173321fee5cb825bbbeb30d9d854
+    environment:
+      POSTGRES_DB: flowmv_phase10_demo
+      POSTGRES_USER: flowmv_demo_owner
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Use scripts/demo-container.mjs}
+    volumes: [demo_postgres:/var/lib/postgresql]
+    networks: [demo]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U flowmv_demo_owner -d flowmv_phase10_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  initialize:
+    <<: *backend
+    depends_on:
+      postgres: {condition: service_healthy}
+    command: [sh, -c, "php /app/demo-bootstrap.php && php artisan migrate --force --no-interaction && php artisan demo:seed --no-interaction"]
+  api:
+    <<: *backend
+    networks: [demo, ingress]
+    depends_on:
+      initialize: {condition: service_completed_successfully}
+      ai-go: {condition: service_healthy}
+    ports: ["127.0.0.1:8011:8000", "[::1]:8011:8000"]
+  worker:
+    <<: *backend
+    depends_on:
+      initialize: {condition: service_completed_successfully}
+      ai-go: {condition: service_healthy}
+    command: [php, artisan, "queue:work", "--sleep=1", "--tries=3", "--timeout=120"]
+  scheduler:
+    <<: *backend
+    depends_on:
+      initialize: {condition: service_completed_successfully}
+      ai-go: {condition: service_healthy}
+    command: [php, artisan, "schedule:work"]
+  web:
+    build:
+      context: .
+      dockerfile: docker/demo/frontend.Dockerfile
+    depends_on: [api]
+    ports: ["127.0.0.1:3011:3000", "[::1]:3011:3000"]
+    networks: [ingress]
+    init: true
+networks:
+  demo:
+    internal: true
+  ingress:
+    driver: bridge
+volumes:
+  demo_postgres:
+    labels: {com.flowmv.purpose: "phase10-owned-demo"}
+  demo_private:
+    labels: {com.flowmv.purpose: "phase10-owned-demo"}

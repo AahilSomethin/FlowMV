@@ -17,7 +17,7 @@ class IntegrationRuntime
             $locked = WorkflowInstance::query()->whereKey($instance->id)->lockForUpdate()->firstOrFail();
             abort_unless($locked->status === WorkflowInstanceStatus::Running && $locked->current_node_id === $nodeId, 403);
             $version = DB::table('workflow_versions')->where('id', $locked->workflow_version_id)->where('workflow_id', $locked->workflow_id)->first();
-            abort_unless($version && (int) $version->node_registry_version === 3, 403);
+            abort_unless($version && in_array((int) $version->node_registry_version, [3, 4], true), 403);
             $graph = json_decode($version->graph_definition, true);
             $node = collect($graph['nodes'] ?? [])->firstWhere('id', $nodeId);
             abort_unless(($node['type'] ?? null) === 'integration_action' && ($node['data']['connection_id'] ?? null) === ($config['connection_id'] ?? null) && ($node['data']['operation'] ?? null) === ($config['operation'] ?? null) && ($node['data']['destination'] ?? null) === ($config['destination'] ?? null), 403);

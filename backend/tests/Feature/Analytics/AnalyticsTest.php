@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WorkflowEvent;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowSubmissionSnapshot;
+use App\Services\Analytics\AuditExplorer;
 use App\Support\CsvCell;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -168,8 +169,8 @@ class AnalyticsTest extends TestCase
         $after = $this->capture(fn () => $this->getJson($this->analytics($organization).'?from=2026-10-01&to=2026-10-31')->assertOk());
 
         $this->assertSame(count($before), count($after));
-        // Phase 7 reuses statusCounts when status filter is null: measured 20 → 19 SQL.
-        $this->assertSame(19, count($after));
+        // Unfiltered workflow rates reuse the same authorized aggregate: 19 to 18 SQL.
+        $this->assertSame(18, count($after));
         $joined = strtolower(implode("\n", $after));
         $this->assertStringContainsString('row_number', $joined);
         $this->assertStringContainsString('group by', $joined);
@@ -274,7 +275,7 @@ class AnalyticsTest extends TestCase
             'decision' => 'approved',
             'changed_field_ids' => ['note'],
             'rules' => [['field_id' => 'note', 'operator' => 'equals', 'matched' => true]],
-        ], \App\Services\Analytics\AuditExplorer::payload([
+        ], AuditExplorer::payload([
             'decision' => 'approved',
             'changed_field_ids' => ['note'],
             'submitted_data' => ['note' => 'secret'],

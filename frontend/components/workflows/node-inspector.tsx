@@ -1,4 +1,6 @@
 "use client";
+import {AiInspector} from "@/components/workflows/ai-inspector";
+import {isAiNode} from "@/lib/ai";
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -6,6 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import { EmailDocumentInspector } from "@/components/workflows/email-document-inspector";
+import { SmsInspector } from "@/components/workflows/sms-inspector";
+import { SlackInspector } from "@/components/workflows/slack-inspector";
+import { TelegramInspector } from "@/components/workflows/telegram-inspector";
+import { TelegramApprovalInspector } from "@/components/workflows/telegram-approval-inspector";
 import { MousePointer2, SlidersHorizontal } from "lucide-react";
 import { NODE_PRESENTATION, nodeSummary } from "@/lib/workflows/node-registry";
 import type { Member } from "@/lib/organizations";
@@ -85,7 +92,7 @@ export function NodeInspector({
     return <div className="flex flex-col items-center gap-3 py-12 text-center"><MousePointer2 className="size-8 text-primary/60" aria-hidden="true" /><h2 className="text-sm font-semibold">Make each step your own</h2><p className="text-sm leading-6 text-muted-foreground">Select a step to configure it. Start with your request form, then add the decisions and tasks it needs.</p><p className="text-xs leading-5 text-muted-foreground">Save your draft at any time. Check the workflow before publishing it.</p></div>;
   }
 
-  const approvals = nodes.filter((item) => item.type === "approval");
+  const approvals = nodes.filter((item) => item.type === "approval" || item.type === "document_validation" || isAiNode(item.type));
 
   return (
     <div className="flex flex-col gap-4">
@@ -95,6 +102,12 @@ export function NodeInspector({
         <Label htmlFor="node-label">Step name</Label>
         <Input id="node-label" placeholder="e.g. Manager review" value={node.data.label} maxLength={120} onChange={(event) => onChange({ label: event.target.value })} />
       </div>
+      {["email_trigger","email_filter","email_send","email_reply","attachment_inspector","document_validation"].includes(node.type) ? <EmailDocumentInspector node={node} fields={fields} organizationId={organizationId} workflowId={workflowId} onChange={onChange}/> : null}
+      {isAiNode(node.type) ? <AiInspector node={node} fields={fields} organizationId={organizationId} workflowId={workflowId} onChange={onChange}/> : null}
+      {node.type.startsWith("sms_") ? <SmsInspector node={node} organizationId={organizationId} workflowId={workflowId} onChange={onChange}/> : null}
+      {node.type.startsWith("slack_") ? <SlackInspector node={node} fields={fields} organizationId={organizationId} onChange={onChange}/> : null}
+      {node.type.startsWith("telegram_") ? <TelegramInspector node={node} fields={fields} organizationId={organizationId} onChange={onChange}/> : null}
+      {node.type === "approval" ? <TelegramApprovalInspector data={node.data} organizationId={organizationId} onChange={onChange}/> : null}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="node-description">Description</Label>
         <Textarea
@@ -154,10 +167,10 @@ export function NodeInspector({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="revision-approval">Return to approval</Label>
+            <Label htmlFor="revision-approval">Return to approval, validation or AI review</Label>
             <Select value={node.data.return_to_node_id ?? ""} onValueChange={onRevisionTarget}>
               <SelectTrigger id="revision-approval" className="w-full">
-                <SelectValue placeholder="Choose an approval" />
+                <SelectValue placeholder="Choose a review step" />
               </SelectTrigger>
               <SelectContent>
                 {approvals.map((approval) => (
@@ -530,7 +543,7 @@ function ConditionFields({
   fields: FormField[];
   onChange: (patch: Partial<WorkflowNodeData>) => void;
 }) {
-  const rules = node.data.rules ?? [];
+  const rules = (node.data.rules ?? []) as import("@/lib/workflows/types").ConditionRule[];
 
   function updateRule(id: string, patch: Partial<(typeof rules)[number]>) {
     onChange({

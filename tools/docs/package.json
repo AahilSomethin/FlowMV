@@ -1,0 +1,12 @@
+{
+  "name": "flowmv-documentation-tools",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "check": "node ../../scripts/check-docs.mjs",
+    "diagrams": "node ../../scripts/render-diagrams.mjs"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "12.2.0"
+  }
+}

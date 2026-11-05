@@ -12,7 +12,7 @@ interface Connector
 
     public function test(#[\SensitiveParameter] array $credentials): bool;
 
-    public function execute(string $operation, string $destination, #[\SensitiveParameter] array $credentials, string $idempotencyKey): void;
+    public function execute(string $operation, string $destination, #[\SensitiveParameter] array $credentials, string $idempotencyKey, #[\SensitiveParameter] array $configuration = []): void;
 
     public function verifyWebhook(string $eventId, int $timestamp, string $signature, #[\SensitiveParameter] array $credentials): bool;
 }

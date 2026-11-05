@@ -40,5 +40,10 @@ yarn-error.log*
 .vercel
 
 # typescript
+.next-phase9c*/
+.next-phase9d*/
+.next-phase10*/
 *.tsbuildinfo
 next-env.d.ts
+.next-phase11*/
+.next-phase12*/

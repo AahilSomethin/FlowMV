@@ -1,6 +1,9 @@
 "use client";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Plug, ShieldCheck, LockKeyhole, Workflow, FlaskConical } from "lucide-react";
+import { KeyRound, ShieldCheck, LockKeyhole, Workflow, FlaskConical } from "lucide-react";
+import { ProviderOverview } from "@/components/connections/provider-overview";
+import { PageHeader } from "@/components/patterns/page-header";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -79,11 +82,13 @@ export function ConnectionsScreen() {
     prepare({title:action === "revoke" ? "Revoke connection permanently" : action === "rotate" ? "Rotate credential" : action.charAt(0).toUpperCase()+action.slice(1), path:`${base}/connections/${connection.id}/${action}`, body});
   }
   return <div className="flex flex-col gap-6">
-    <div className="flex items-start gap-3"><Plug className="mt-1 size-7 text-primary" aria-hidden="true"/><div><h1 className="text-2xl font-semibold tracking-tight">Connections</h1><p className="text-muted-foreground">Choose what FlowMV can access and which workflows may use it.</p></div></div>
+    <PageHeader title="Connections" description="Choose what FlowMV can access and which workflows may use it."/>
+    <Button asChild variant="outline"><Link href="/connections/ai">OpenAI &amp; Gemini · scoped AI processing</Link></Button>
+    {organization&&<ProviderOverview organizationId={organization}/>}
     {error && <p role="alert" className="rounded-lg border border-destructive p-3 text-sm">{error} <Button variant="ghost" onClick={() => void load().catch(() => setError("Could not load connections."))}>Reload</Button></p>}
     {notice && <p role="status" className="rounded-lg border p-3 text-sm">{notice}</p>}
-    {!catalog ? <p>Loading connections…</p> : <>
-      <Card><CardHeader><CardTitle className="flex items-center gap-2"><FlaskConical className="size-5" aria-hidden="true"/>Local demonstration <Badge variant="secondary">Mock provider</Badge></CardTitle><CardDescription>No real service is connected. Credentials and delivery stay inside FlowMV.</CardDescription></CardHeader><CardContent className="grid gap-4 md:grid-cols-3">
+    {!catalog ? <p>Loading connection controls…</p> : !catalog.mock_enabled && catalog.items.length===0 ? <p className="text-xs text-muted-foreground">The local mock connector is disabled. Use the provider setup pages above for your connected services.</p> : <>
+      <Card><CardHeader><CardTitle className="flex items-center gap-2"><FlaskConical className="size-5" aria-hidden="true"/>Local mock connector <Badge variant="secondary">Mock provider</Badge></CardTitle><CardDescription>This connector records synthetic events only. It is separate from the provider connections above.</CardDescription></CardHeader><CardContent className="grid gap-4 md:grid-cols-3">
         <div><h2 className="font-medium">What FlowMV can read</h2><p className="text-sm text-muted-foreground">{catalog.provider.reads}</p></div>
         <div><h2 className="font-medium">What FlowMV can send</h2><p className="text-sm text-muted-foreground">{catalog.provider.sends}</p></div>
         <div><h2 className="flex items-center gap-2 font-medium"><LockKeyhole className="size-4" aria-hidden="true"/>Your credentials stay private</h2><p className="text-sm text-muted-foreground">Secrets are encrypted and cannot be viewed after saving. Shared credentials require explicit workflow permission.</p></div>

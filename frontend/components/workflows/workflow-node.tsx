@@ -28,7 +28,7 @@ export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
       )}
       aria-label={`${presentation.title}: ${data.label || "Untitled"}${warning ? `. ${warning}` : ""}`}
     >
-      {kind !== "start" ? <Handle type="target" position={Position.Top} id="in" className="!size-3 !border-2 !border-card !bg-[var(--node-accent)]" aria-label={presentation.inputLabel} /> : null}
+      {kind !== "start" && kind !== "telegram_trigger" && kind !== "email_trigger" && kind !== "slack_trigger" ? <Handle type="target" position={Position.Top} id="in" className="!size-3 !border-2 !border-card !bg-[var(--node-accent)]" aria-label={presentation.inputLabel} /> : null}
       <div className="flex items-start gap-3 p-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_oklch,var(--node-accent)_12%,transparent)] text-[var(--node-accent)]">
           <Icon className="size-[18px]" aria-hidden="true" />
@@ -62,6 +62,9 @@ export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
 }
 
 export const workflowNodeTypes = {
-  start: WorkflowNode, approval: WorkflowNode, condition: WorkflowNode, revision: WorkflowNode,
-  end: WorkflowNode, notification: WorkflowNode, assignment: WorkflowNode, delay: WorkflowNode, integration_action: WorkflowNode,
+  ai_email_analysis:WorkflowNode, ai_document_analysis:WorkflowNode, ai_slack_analysis:WorkflowNode, ai_summarization:WorkflowNode, ai_classification:WorkflowNode, ai_field_extraction:WorkflowNode, ai_reply_draft:WorkflowNode,
+  email_trigger: WorkflowNode, email_filter: WorkflowNode, email_send: WorkflowNode, email_reply: WorkflowNode, attachment_inspector: WorkflowNode, document_validation: WorkflowNode, start: WorkflowNode, approval: WorkflowNode, condition: WorkflowNode, revision: WorkflowNode,
+  sms_notification: WorkflowNode, sms_send_message: WorkflowNode,
+  slack_trigger: WorkflowNode, slack_filter: WorkflowNode, slack_send_message: WorkflowNode, slack_notification: WorkflowNode,
+  end: WorkflowNode, notification: WorkflowNode, assignment: WorkflowNode, delay: WorkflowNode, integration_action: WorkflowNode, telegram_trigger: WorkflowNode, telegram_filter: WorkflowNode, telegram_send_message: WorkflowNode, telegram_notification: WorkflowNode,
 };

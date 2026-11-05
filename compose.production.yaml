@@ -1,0 +1,121 @@
+name: flowmv-release-candidate
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: docker/production/backend.Dockerfile
+  env_file: ${FLOWMV_RUNTIME_ENV_FILE:?Provide a runtime-only environment without migrator secrets}
+  volumes: [release_private:/app/backend/storage, "${FLOWMV_CERT_DIR:?Provide reviewed TLS files}/ai.crt:/certs/ai.crt:ro", "${FLOWMV_DB_CA_CERT:?Provide the reviewed PostgreSQL trust anchor}:/certs/db.crt:ro"]
+  networks: [private]
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp, "/app/backend/bootstrap/cache:uid=33,gid=33,mode=0700"]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 128
+  mem_limit: 512m
+  cpus: 2
+  stop_grace_period: 150s
+services:
+  api:
+    <<: *backend
+    healthcheck:
+      test: [CMD-SHELL, "php -r 'exit(@fsockopen(\"127.0.0.1\",9000,$$errno,$$error,2)?0:1);' && php artisan operations:check --runtime-only --no-interaction"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+  worker:
+    <<: *backend
+    command: [php, artisan, "queue:work", "--sleep=1", "--tries=1", "--timeout=120", "--max-time=3600"]
+    healthcheck: &runtime-health
+      test: [CMD, php, artisan, "operations:check", "--runtime-only", "--no-interaction"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+  scheduler:
+    <<: *backend
+    command: [php, artisan, "schedule:work"]
+    healthcheck: *runtime-health
+  migrate:
+    <<: *backend
+    profiles: [operations]
+    restart: "no"
+    environment:
+      DB_USERNAME: ${DB_OWNER_USER:?Separate migrator required}
+      DB_PASSWORD: ${DB_OWNER_PASSWORD:?Separate migrator secret required}
+    command: [php, artisan, migrate, --force, --no-interaction]
+  ai-go:
+    build: {context: ., dockerfile: docker/demo/ai-go.Dockerfile, target: runtime}
+    environment:
+      AI_SERVICE_KEY: ${AI_SERVICE_KEY:?Independent AI signing key required}
+      AI_LISTEN: 0.0.0.0:8020
+      AI_PRIVATE_CONTAINER: 'true'
+      AI_SIMULATED: 'false'
+      AI_TLS_CERT: /certs/ai.crt
+      AI_TLS_KEY: /certs/ai.key
+      GOMEMLIMIT: 192MiB
+      GOMAXPROCS: '2'
+    volumes: ["${FLOWMV_CERT_DIR}/ai.crt:/certs/ai.crt:ro", "${FLOWMV_CERT_DIR}/ai.key:/certs/ai.key:ro"]
+    networks: [private]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 2
+    restart: unless-stopped
+    stop_grace_period: 35s
+    healthcheck: {test: [CMD, /ai-go, --healthcheck], interval: 10s, timeout: 3s, retries: 12}
+  web:
+    build:
+      context: .
+      dockerfile: docker/production/frontend.Dockerfile
+      args: {PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:?Explicit HTTPS public origin required}"}
+    networks: [private]
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/app/frontend/.next/cache:uid=1000,gid=1000", /tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    cpus: 2
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/login',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  gateway:
+    image: nginx:stable-alpine@sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949
+    user: "101:101"
+    entrypoint: [nginx, -g, "daemon off;"]
+    volumes: ["./docker/production/nginx.conf:/etc/nginx/nginx.conf:ro", "${FLOWMV_CERT_DIR}/web.crt:/certs/web.crt:ro", "${FLOWMV_CERT_DIR}/web.key:/certs/web.key:ro"]
+    ports: ["127.0.0.1:${FLOWMV_HTTPS_PORT:-18443}:8443"]
+    networks: [private, ingress]
+    depends_on: [api, web]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 1
+    healthcheck: {test: [CMD, nginx, -t], interval: 30s, timeout: 5s, retries: 3}
+  postgres:
+    image: postgres:18.0-bookworm@sha256:3f55f8895c4ed50603e2fbdfc72fffeeaba3173321fee5cb825bbbeb30d9d854
+    profiles: [staging]
+    environment:
+      POSTGRES_DB: flowmv_phase12_staging
+      POSTGRES_USER: ${DB_OWNER_USER}
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD}
+    volumes: [staging_postgres:/var/lib/postgresql]
+    networks: [private]
+    healthcheck: {test: [CMD-SHELL, "pg_isready -U flowmv_phase12_migrator -d flowmv_phase12_staging"], interval: 3s, timeout: 3s, retries: 30}
+networks:
+  private: {internal: true}
+  ingress: {driver: bridge}
+volumes:
+  release_private: {labels: {com.flowmv.purpose: phase12-candidate-private}}
+  staging_postgres: {labels: {com.flowmv.purpose: phase12-isolated-staging}}

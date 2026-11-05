@@ -2,6 +2,10 @@
 
 namespace App\Services\Workflows;
 
+use App\Services\AI\AiNodes;
+use App\Services\Integrations\EmailNodes;
+use App\Services\Integrations\SlackNodes;
+use App\Services\Integrations\TelegramNodes;
 use App\Services\Workflows\Nodes\NodeRegistry;
 
 /**
@@ -56,7 +60,16 @@ class WorkflowDefinitionValidator
 
         $this->formConfig($form, $violations);
 
-        $starts = array_values(array_filter($nodes, fn (array $node) => $node['type'] === 'start'));
+        $starts = array_values(array_filter($nodes, fn (array $node) => in_array($node['type'], ['start', 'telegram_trigger', 'email_trigger', 'slack_trigger'], true)));
+        if (collect($nodes)->contains(fn ($n) => in_array($n['type'], ['email_filter', 'attachment_inspector', 'document_validation', 'email_reply'], true)) && ! collect($nodes)->contains('type', 'email_trigger')) {
+            $violations[] = $this->violation('email_trigger_required', 'Email inspection, document validation and replies require an Email Trigger.');
+        }
+        if (collect($nodes)->contains('type', 'telegram_filter') && ! collect($nodes)->contains('type', 'telegram_trigger')) {
+            $violations[] = $this->violation('telegram_trigger_required', 'A Telegram filter requires a Telegram Trigger.');
+        }
+        if (collect($nodes)->contains('type', 'slack_filter') && ! collect($nodes)->contains('type', 'slack_trigger')) {
+            $violations[] = $this->violation('slack_trigger_required', 'A Slack filter requires a Slack Trigger.');
+        }
         $ends = array_values(array_filter($nodes, fn (array $node) => $node['type'] === 'end'));
 
         if (count($starts) !== 1) {
@@ -90,7 +103,7 @@ class WorkflowDefinitionValidator
                 continue;
             }
 
-            if ($target['type'] === 'start' || $edge['target_handle'] !== 'in') {
+            if (in_array($target['type'], ['start', 'telegram_trigger', 'email_trigger', 'slack_trigger'], true) || $edge['target_handle'] !== 'in') {
                 $violations[] = $this->violation('invalid_edge_endpoint', 'Only Approval, Condition, Revision, and End nodes accept incoming connections.', $target['id'], $edge['id']);
 
                 continue;
@@ -164,6 +177,18 @@ class WorkflowDefinitionValidator
     private function nodeConfig(array $node, array $form, array &$violations): void
     {
         $data = $node['data'];
+        if (isset(AiNodes::OPERATIONS[$node['type']]) && ! app(AiNodes::class)->fieldsValid($data, $form)) {
+            $violations[] = $this->violation('ai_mapping', 'AI sources and suggestion mappings must refer to existing fields. Document analysis requires a file field.', $node['id']);
+        }
+        if (in_array($node['type'], EmailNodes::TYPES, true) && ! app(EmailNodes::class)->fieldsValid($node['type'], $data, $form)) {
+            $violations[] = $this->violation('email_document_mapping', 'Map document fields to matching form types. Use Document Validation for required information and optional form fields so incomplete email requests can be corrected.', $node['id']);
+        }
+        if (in_array($node['type'], TelegramNodes::TYPES, true) && ! app(TelegramNodes::class)->fieldsValid($node['type'], $data, $form)) {
+            $violations[] = $this->violation('telegram_mapping', 'Map required form fields and allow only existing non-file fields in messages.', $node['id']);
+        }
+        if (in_array($node['type'], SlackNodes::TYPES, true) && ! app(SlackNodes::class)->fieldsValid($node['type'], $data, $form)) {
+            $violations[] = $this->violation('slack_mapping', 'Map required form fields and allow only existing non-file fields in messages.', $node['id']);
+        }
 
         if (($data['label'] ?? '') === '') {
             $violations[] = $this->violation('incomplete_config', 'Give this node a label.', $node['id']);
@@ -421,7 +446,7 @@ class WorkflowDefinitionValidator
         foreach ($incoming as $edge) {
             $source = $byId[$edge['source']] ?? null;
 
-            if ($source === null || $source['type'] !== 'approval' || $edge['source_handle'] !== 'rejected') {
+            if (! $this->correctionEntry($edge, $byId, $edges)) {
                 $violations[] = $this->violation('revision_structure', 'Only an Approval rejection can enter a Revision node.', $node['id'], $edge['id']);
             }
         }
@@ -447,7 +472,7 @@ class WorkflowDefinitionValidator
             return;
         }
 
-        if ($target['type'] !== 'approval') {
+        if (! in_array($target['type'], ['approval', 'document_validation'], true) && ! isset(AiNodes::OPERATIONS[$target['type']])) {
             $violations[] = $this->violation('revision_target', 'A revision returns to an Approval node that comes before it.', $node['id'], $returnEdge['id']);
 
             return;
@@ -487,6 +512,29 @@ class WorkflowDefinitionValidator
                 $violations[] = $this->violation('exhausted_result', 'The exhausted revision path must end at a rejected End node.', $terminal['id'] ?? $node['id'], $exhausted[0]['id']);
             }
         }
+    }
+
+    private function correctionEntry(array $edge, array $byId, array $edges, int $depth = 0): bool
+    {
+        $source = $byId[$edge['source']] ?? null;
+        if (! $source) {
+            return false;
+        }
+        if ($source['type'] === 'approval') {
+            return $edge['source_handle'] === 'rejected';
+        }
+        if (isset(AiNodes::OPERATIONS[$source['type']])) {
+            return in_array($edge['source_handle'], ['missing', 'uncertain'], true);
+        }
+        if ($source['type'] === 'document_validation') {
+            return in_array($edge['source_handle'], ['missing', 'invalid', 'unknown'], true);
+        }
+        if ($source['type'] !== 'email_reply' || $depth > 0) {
+            return false;
+        }
+        $previous = array_values(array_filter($edges, fn ($e) => $e['target'] === $source['id']));
+
+        return $previous !== [] && collect($previous)->every(fn ($e) => $this->correctionEntry($e, $byId, $edges, $depth + 1));
     }
 
     /**

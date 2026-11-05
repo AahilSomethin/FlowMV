@@ -1,0 +1,11 @@
+import {execFileSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
+import {dirname,resolve,join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+execFileSync('node',[join(root,'scripts/demo-setup.mjs'),'container'],{stdio:'inherit',windowsHide:true});
+const env=Object.fromEntries(readFileSync(join(root,'backend/.env.demo.container'),'utf8').split(/\r?\n/).filter(Boolean).map(l=>{const i=l.indexOf('=');return[l.slice(0,i),l.slice(i+1)];}));
+const action=process.argv[2]??'up';
+const args=action==='up'?['up','--build','-d']:action==='stop'?['stop']:action==='verify'?['exec','-T','api','php','artisan','demo:verify']:null;
+if(!args)throw new Error('Supported commands: up, stop, verify. No destructive reset is provided.');
+execFileSync('docker',['compose','-f','compose.demo.yaml',...args],{cwd:root,env:{...process.env,DB_PASSWORD:env.DB_PASSWORD,AI_SERVICE_KEY:env.AI_SERVICE_KEY,AI_DEMO_INSTALLATION:env.FLOWMV_DEMO_INSTALLATION_TOKEN},stdio:'inherit',windowsHide:true});

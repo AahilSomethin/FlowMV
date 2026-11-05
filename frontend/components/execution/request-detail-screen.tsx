@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { useParams } from "next/navigation";
 import { DecisionRecord } from "@/components/analytics/decision-record";
 import { ReadOnlyFields } from "@/components/execution/dynamic-form";
@@ -10,6 +10,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import {AiAdvice} from "@/components/execution/ai-advice";
+import {DocumentEvidence} from "@/components/execution/document-evidence";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";
 import { LoadingState } from "@/components/patterns/loading-state";
 import { PageHeader } from "@/components/patterns/page-header";
@@ -140,7 +142,7 @@ export function RequestDetailScreen() {
               </AlertDescription>
             </Alert>
           ) : null}
-          {instance.status === "awaiting_delay" || instance.status === "awaiting_revision" || instance.status === "awaiting_assignment" || instance.status === "awaiting_approval" ? <Alert><AlertTitle>{instanceStatusLabel(instance.status)}</AlertTitle><AlertDescription>{instance.status === "awaiting_delay" ? "The workflow is paused for a configured waiting period. It continues automatically when that period ends." : instance.status === "awaiting_revision" ? "The submitter needs to update their answers. Open My Tasks to review any revision assigned to you." : instance.status === "awaiting_assignment" ? "An assigned task needs to be completed before this request continues." : "This request is waiting for a decision at its current approval step."}</AlertDescription></Alert> : null}
+          {instance.status === "awaiting_ai" || instance.status === "awaiting_delay" || instance.status === "awaiting_revision" || instance.status === "awaiting_assignment" || instance.status === "awaiting_approval" ? <Alert><AlertTitle>{instanceStatusLabel(instance.status)}</AlertTitle><AlertDescription>{instance.status === "awaiting_ai" ? "Approved AI processing is pending. A person still makes any approval decision. Refresh to check progress." : instance.status === "awaiting_delay" ? "The workflow is paused for a configured waiting period. It continues automatically when that period ends." : instance.status === "awaiting_revision" ? "The submitter needs to update their answers. Open My Tasks to review any revision assigned to you." : instance.status === "awaiting_assignment" ? "An assigned task needs to be completed before this request continues." : "This request is waiting for a decision at its current approval step."}</AlertDescription></Alert> : null}
           {conflict ? (
             <Alert variant="destructive">
               <AlertTitle>This request changed</AlertTitle>
@@ -169,6 +171,8 @@ export function RequestDetailScreen() {
           <section className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
             <h2 className="text-sm font-medium">Current submission</h2>
             <ReadOnlyFields definition={instance.form_definition} data={instance.submitted_data} />
+            <DocumentEvidence organizationId={organizationId} documents={instance.documents}/>
+          {organizationId && !!instance.ai_runs?.length && <AiAdvice organizationId={organizationId} instanceId={instance.uuid}/>}
             {(instance.tasks ?? [])
               .filter((task) => task.task_type === "approval" && task.status === "completed")
               .map((task) => (

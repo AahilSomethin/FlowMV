@@ -48,7 +48,7 @@ class MockConnector implements Connector
         return count($credentials) === 1 && strlen((string) reset($credentials)) >= 16;
     }
 
-    public function execute(string $operation, string $destination, #[\SensitiveParameter] array $credentials, string $idempotencyKey): void
+    public function execute(string $operation, string $destination, #[\SensitiveParameter] array $credentials, string $idempotencyKey, #[\SensitiveParameter] array $configuration = []): void
     {
         $this->validateConfiguration($operation, ['destination' => $destination]);
         abort_unless($operation === 'mock.notify' && $this->test($credentials), 403, 'Integration operation denied.');

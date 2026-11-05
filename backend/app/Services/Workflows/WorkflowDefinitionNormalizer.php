@@ -5,8 +5,14 @@ namespace App\Services\Workflows;
 use App\Enums\OrganizationRole;
 use App\Enums\WorkflowEndResult;
 use App\Enums\WorkflowNodeType;
+use App\Services\AI\AiNodes;
+use App\Services\Integrations\EmailNodes;
+use App\Services\Integrations\SlackNodes;
+use App\Services\Integrations\SmsNodes;
+use App\Services\Integrations\TelegramNodes;
 use App\Services\Workflows\Nodes\NodeRegistry;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class WorkflowDefinitionNormalizer
 {
@@ -216,7 +222,53 @@ class WorkflowDefinitionNormalizer
             }
         }
 
+        if (isset(AiNodes::OPERATIONS[$type])) {
+            try {
+                $normalized += app(AiNodes::class)->normalize($type, $data);
+            } catch (\Throwable) {
+                $violations[] = $this->violation('ai_config', 'Choose an approved AI connection, source, schema and data categories. AI outputs are suggestions only.', $id);
+            }
+        }
+
+        if (in_array($type, TelegramNodes::TYPES, true)) {
+            try {
+                $normalized += app(TelegramNodes::class)->normalize($type, $data);
+            } catch (\Throwable) {
+                $violations[] = $this->violation('telegram_config', 'Check the Telegram connection, destination, mapping and message fields.', $id);
+            }
+        }
+        if (in_array($type, SmsNodes::TYPES, true)) {
+            try {
+                $normalized += app(SmsNodes::class)->normalize($type, $data);
+            } catch (\Throwable) {
+                $violations[] = $this->violation('sms_config', 'Select an approved SMS connection, sender, recipient and template.', $id);
+            }
+        }
+        if (in_array($type, SlackNodes::TYPES, true)) {
+            try {
+                $normalized += app(SlackNodes::class)->normalize($type, $data);
+            } catch (\Throwable) {
+                $violations[] = $this->violation('slack_config', 'Check the Slack connection, destination, mapping and message fields.', $id);
+            }
+        }
+
+        if (in_array($type, EmailNodes::TYPES, true)) {
+            try {
+                $normalized += app(EmailNodes::class)->normalize($type, $data);
+            } catch (\Throwable) {
+                $violations[] = $this->violation('email_document_config', 'Check the email connection, approved recipient, rules and document field configuration.', $id);
+            }
+        }
+
         if ($type === WorkflowNodeType::Approval->value) {
+            if (array_key_exists('telegram_approval', $data)) {
+                $approval = $data['telegram_approval'];
+                if (! is_array($approval) || array_diff(array_keys($approval), ['connection_id', 'destination']) !== [] || ! is_string($approval['connection_id'] ?? null) || ! is_string($approval['destination'] ?? null) || ! Str::isUuid($approval['connection_id']) || ! preg_match('/^[0-9]{1,20}$/D', $approval['destination'])) {
+                    $violations[] = $this->violation('telegram_approval', 'Choose a Telegram connection and an approved private chat for a confirmed eligible approver.', $id);
+                } else {
+                    $normalized['telegram_approval'] = $approval;
+                }
+            }
             $roles = $data['assignee_roles'] ?? [];
 
             if (! is_array($roles) || ! array_is_list($roles)) {
@@ -360,7 +412,7 @@ class WorkflowDefinitionNormalizer
             return null;
         }
 
-        $allowed = array_values(array_unique(array_merge(...array_values($this->registry->allSourceHandles(NodeRegistry::CURRENT)))));
+        $allowed = array_values(array_unique(array_merge(...array_values($this->registry->allSourceHandles(NodeRegistry::AUTHORING)))));
 
         if (! is_string($sourceHandle) || ! in_array($sourceHandle, $allowed, true)) {
             $violations[] = $this->violation('invalid_handle', 'A connection uses an unsupported outcome.', null, $id);

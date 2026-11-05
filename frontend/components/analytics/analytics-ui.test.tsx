@@ -237,4 +237,10 @@ describe("analytics screens", () => {
 
     expect(screen.getByText(/No decision-time snapshot was recorded/)).toBeInTheDocument();
   });
+
+  it("does not claim an omitted task-list snapshot was never recorded", () => {
+    render(<DecisionRecord task={{task_type:"approval",status:"completed",decision:"approved",node_label:"Manager approval"}} definition={{fields:[]}} current={{note:"corrected"}}/>);
+    expect(screen.getByText(/Task list previews omit it/)).toBeInTheDocument();
+    expect(screen.queryByText(/No decision-time snapshot was recorded/)).not.toBeInTheDocument();
+  });
 });

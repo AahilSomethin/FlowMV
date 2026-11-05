@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { ListTodo, ShieldCheck, RotateCcw, UserRoundCheck } from "lucide-react";
 import { TaskDetail } from "@/components/execution/task-detail";
 import { ListPager } from "@/components/execution/list-pager";

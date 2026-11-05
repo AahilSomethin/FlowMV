@@ -9,6 +9,7 @@ enum WorkflowInstanceStatus: string
     case AwaitingRevision = 'awaiting_revision';
     case AwaitingAssignment = 'awaiting_assignment';
     case AwaitingDelay = 'awaiting_delay';
+    case AwaitingAi = 'awaiting_ai';
     case Completed = 'completed';
     case Rejected = 'rejected';
     case Failed = 'failed';
@@ -25,6 +26,7 @@ enum WorkflowInstanceStatus: string
             self::AwaitingRevision,
             self::AwaitingAssignment,
             self::AwaitingDelay,
+            self::AwaitingAi,
         ], true);
     }
 }

@@ -7,6 +7,8 @@ use App\Models\WorkflowInstance;
 use App\Services\Workflows\Execution\NodeLabels;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * @mixin WorkflowInstance
@@ -23,6 +25,7 @@ class WorkflowInstanceResource extends JsonResource
         $labels = NodeLabels::forVersion($version);
 
         return [
+            'ai_runs' => $detailed && Schema::hasTable('ai_processing_runs') ? DB::table('ai_processing_runs')->where('organization_id', $this->organization_id)->where('workflow_instance_id', $this->id)->pluck('id')->all() : [],
             'uuid' => $this->uuid,
             'status' => $this->status->value,
             'failure_code' => $this->failure_code?->value,
@@ -44,6 +47,7 @@ class WorkflowInstanceResource extends JsonResource
                 'name' => $this->submitter->name,
             ] : null,
             'submitted_data' => $this->when($detailed, fn () => $this->submitted_data),
+            'documents' => $this->when($detailed, fn () => Schema::hasTable('workflow_document_evidence') ? DB::table('workflow_document_evidence as e')->join('private_documents as d', 'd.id', '=', 'e.document_id')->where('e.workflow_instance_id', $this->id)->where('e.organization_id', $this->organization_id)->get(['d.id', 'd.name', 'd.status', 'd.expires_at']) : []),
             'form_definition' => $this->when($detailed && $version !== null, fn () => $version->form_definition),
             'tasks' => $this->when($detailed && $this->relationLoaded('tasks'), fn () => $this->tasks->map(fn ($task) => [
                 'uuid' => $task->uuid,

@@ -15,14 +15,36 @@ use App\Models\Workflow;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowTask;
 use App\Models\WorkflowVersion;
+use App\Services\AI\AiClient;
+use App\Services\AI\AiConnections;
+use App\Services\AI\AiProcessing;
 use App\Services\Integrations\ConnectionManager;
+use App\Services\Integrations\CredentialVault;
+use App\Services\Integrations\EmailHttp;
+use App\Services\Integrations\EmailIngress;
+use App\Services\Integrations\EmailTokens;
 use App\Services\Integrations\IntegrationRuntime;
+use App\Services\Integrations\SlackApi;
+use App\Services\Integrations\SlackIngress;
+use App\Services\Integrations\SlackTokens;
+use App\Services\Integrations\SmsApi;
+use App\Services\Integrations\SmsAuthorization;
+use App\Services\Integrations\SmsDelivery;
+use App\Services\Integrations\SmsWorkflow;
+use App\Services\Integrations\TelegramActivation;
+use App\Services\Integrations\TelegramApi;
+use App\Services\Integrations\TelegramDecisions;
+use App\Services\Integrations\TelegramDelivery;
+use App\Services\Integrations\TelegramIngress;
+use App\Services\Integrations\TelegramWorkflow;
 use App\Services\Workflows\Execution\IdempotentAction;
+use App\Services\Workflows\Execution\PublishedGraph;
 use App\Services\Workflows\Execution\WorkflowEventWriter;
 use App\Support\OrganizationAdminGuard;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Concurrency;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +65,366 @@ use Tests\TestCase;
 class WorkflowConcurrencyTest extends TestCase
 {
     use DatabaseMigrations;
+
+    public function test_concurrent_ai_requests_reserve_once_and_workers_claim_once(): void
+    {
+        $options = ['ai.enabled' => true, 'ai.simulated' => false, 'ai.service_key' => str_repeat('a', 64), 'ai.service_url' => 'http://127.0.0.1:8020', 'integrations.keys.v1' => base64_encode(random_bytes(32)), 'app.key' => 'base64:'.base64_encode(random_bytes(32))];
+        config($options);
+        Queue::fake();
+        $user = User::factory()->create();
+        $org = Organization::factory()->create(['created_by' => $user->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $user->id, 'role' => OrganizationRole::Admin]);
+        $service = app(AiConnections::class);
+        $service->policy($user->id, $org->id, ['enabled' => true, 'providers' => ['openai'], 'data_categories' => ['workplace_request'], 'max_input_bytes' => 20000, 'max_output_tokens' => 1024, 'daily_organization_units' => 200000, 'daily_user_units' => 100000, 'daily_workflow_units' => 100000, 'max_corrections' => 2, 'retention_days' => 7]);
+        $id = $service->create($user->id, $org->id, ['name' => 'Synthetic race', 'provider' => 'openai', 'ownership' => 'organization', 'model' => 'gpt-5.4-mini', 'operations' => ['summarize'], 'max_input_bytes' => 20000, 'max_output_tokens' => 1024, 'daily_units' => 100000], ['api_key' => 'sk-FLOWMV_QA_AI_ONLY_'.str_repeat('x', 30)]);
+        $service->action($user->id, $org->id, $id, 'approve', []);
+        $workflow = Workflow::factory()->create(['organization_id' => $org->id]);
+        $service->action($user->id, $org->id, $id, 'grant', ['workflow_id' => $workflow->uuid, 'operation' => 'summarize']);
+        $version = WorkflowVersion::factory()->create(['workflow_id' => $workflow->id, 'form_definition' => ['fields' => [ExecutionGraphs::field('details', 'text')]]]);
+        $instance = WorkflowInstance::create(['organization_id' => $org->id, 'workflow_id' => $workflow->id, 'workflow_version_id' => $version->id, 'submitted_by' => $user->id, 'status' => 'running', 'current_node_id' => (string) Str::uuid(), 'submitted_data' => ['details' => 'Synthetic race request.'], 'started_at' => now()]);
+        $database = config('database.connections.pgsql');
+        $orgId = $org->id;
+        $userId = $user->id;
+        $workflowId = $workflow->id;
+        $source = $instance->uuid;
+        $at = microtime(true) + 1;
+        $request = static function () use ($options, $database, $orgId, $userId, $workflowId, $source, $id, $at): string {
+            config([...$options, 'database.default' => 'pgsql', 'database.connections.pgsql' => $database]);
+            DB::purge('pgsql');
+            Queue::fake();
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+
+            return app(AiProcessing::class)->request($userId, $orgId, $workflowId, $id, 'summarize', 'request', $source, ['input_fields' => ['details'], 'fields' => [], 'categories' => [], 'routes' => [], 'data_categories' => ['workplace_request']]);
+        };
+        $ids = Concurrency::driver('process')->run([$request, $request]);
+        $this->assertSame($ids[0], $ids[1]);
+        $this->assertDatabaseCount('ai_usage_reservations', 1);
+        $this->assertDatabaseCount('ai_processing_runs', 1);
+        $run = $ids[0];
+        $at = microtime(true) + 1;
+        $process = static function () use ($options, $database, $orgId, $userId, $id, $run, $at): bool {
+            config([...$options, 'database.default' => 'pgsql', 'database.connections.pgsql' => $database]);
+            DB::purge('pgsql');
+            $client = new AiClient;
+            $client->http->preventStrayRequests();
+            $client->http->fake(function ($request) use ($orgId, $userId, $id) {
+                if (str_ends_with($request->url(), '/readyz')) {
+                    return Factory::response(['contract' => 'flowmv.ai.v1', 'audience' => str_repeat('b', 64)]);
+                }
+                app(ConnectionManager::class)->audit($orgId, $id, $userId, 'ai.qa.transport.called');
+                usleep(100000);
+                $body = json_decode($request->body(), true);
+
+                return Factory::response(['contract' => 'flowmv.ai.v1', 'request_id' => $body['request_id'], 'provider' => 'openai', 'model' => 'gpt-5.4-mini', 'prompt_version' => 'workplace-v1', 'source' => 'provider_response', 'input_tokens' => 10, 'output_tokens' => 20, 'advice' => ['summary' => 'Synthetic advisory.', 'classification' => 'unknown', 'fields' => [], 'missing' => [], 'inconsistent' => [], 'route' => '', 'draft_reply' => '', 'recommendation' => 'review', 'uncertain' => false]]);
+            });
+            app()->instance(AiClient::class, $client);
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+            app(AiProcessing::class)->process($run);
+
+            return true;
+        };
+        Concurrency::driver('process')->run([$process, $process]);
+        $this->assertDatabaseHas('ai_processing_runs', ['id' => $run, 'status' => 'completed', 'attempt_count' => 1]);
+        $this->assertSame(1, DB::table('integration_audit_events')->where('connection_id', $id)->where('event', 'ai.qa.transport.called')->count());
+    }
+
+    public function test_concurrent_sms_workers_share_one_daily_budget_and_do_not_repeat_a_send(): void
+    {
+        $key = base64_encode(random_bytes(32));
+        config(['sms.enabled' => true, 'integrations.keys.v1' => $key, 'sms.webhook_origin' => 'https://flowmv.example.test']);
+        Queue::fake();
+        $admin = User::factory()->create();
+        $org = Organization::factory()->create(['created_by' => $admin->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $admin->id, 'role' => OrganizationRole::Admin]);
+        $vault = app(CredentialVault::class);
+        $sid = 'AC'.str_repeat('0', 32);
+        $id = (string) Str::uuid();
+        DB::table('integration_approvals')->insert(['organization_id' => $org->id, 'provider_id' => 'twilio_sms', 'approved' => true]);
+        DB::table('sms_policies')->insert(['organization_id' => $org->id, 'enabled' => true, 'allowed_countries' => '["US"]', 'per_minute' => 10, 'daily_limit' => 1, 'monthly_limit' => 10, 'recipient_daily_limit' => 10, 'approved_by' => $admin->id, ...$vault->encrypt(['fingerprint_key' => base64_encode(random_bytes(32))], 'sms-policy:'.$org->id)]);
+        DB::table('connections')->insert(['id' => $id, 'organization_id' => $org->id, 'provider_id' => 'twilio_sms', 'name' => 'SMS race', 'credential_type' => 'api_key', 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('credential_secrets')->insert(['connection_id' => $id, ...$vault->encrypt(['account_sid' => $sid, 'auth_token' => str_repeat('0', 32)], $id), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('sms_accounts')->insert(['connection_id' => $id, 'account_sid' => $sid, 'active_account_sid' => $sid, 'approved_by' => $admin->id, 'health' => 'healthy']);
+        $data = ['connection_id' => $id];
+        foreach (['sender' => '+15005550006', 'recipient' => '+15005550009'] as $kind => $phone) {
+            $resource = (string) Str::uuid();
+            $data[$kind.'_id'] = $resource;
+            DB::table('sms_'.$kind.'s')->insert(['id' => $resource, 'organization_id' => $org->id, 'connection_id' => $id, 'label' => 'Synthetic', 'country' => 'US', 'fingerprint' => app(SmsAuthorization::class)->fingerprint($org->id, $phone), 'masked_phone' => '...0000', 'approved_by' => $admin->id, 'consent_at' => now(), 'expires_at' => now()->addDay(), ...$vault->encrypt(['phone' => $phone], 'sms-'.$kind.':'.$resource)]);
+        }
+        $data['template_id'] = (string) Str::uuid();
+        DB::table('sms_templates')->insert(['id' => $data['template_id'], 'organization_id' => $org->id, 'name' => 'Safe outcome', 'body' => 'Request {{request.uuid}} updated.', 'approved_by' => $admin->id]);
+        $workflow = Workflow::factory()->create(['organization_id' => $org->id]);
+        DB::table('sms_workflow_grants')->insert(['organization_id' => $org->id, 'workflow_id' => $workflow->id, 'operation' => 'sms.notification', 'authorized_by' => $admin->id, ...$data]);
+        $node = WorkflowGraphs::node((string) Str::uuid(), 'sms_notification', 0, 0, ['label' => 'SMS', ...$data]);
+        $version = WorkflowVersion::factory()->create(['workflow_id' => $workflow->id, 'node_registry_version' => 3, 'graph_definition' => ['nodes' => [$node], 'edges' => []], 'form_definition' => ['fields' => []]]);
+        foreach (range(1, 2) as $n) {
+            $instance = WorkflowInstance::create(['organization_id' => $org->id, 'workflow_id' => $workflow->id, 'workflow_version_id' => $version->id, 'submitted_by' => $admin->id, 'status' => 'running', 'current_node_id' => $node['id'], 'submitted_data' => [], 'started_at' => now()]);
+            $node = PublishedGraph::fromVersion($version)->node($node['id']);
+            app(SmsWorkflow::class)->enqueue($instance, $version, $admin, $node);
+        }
+        $ids = DB::table('sms_action_outbox')->orderBy('id')->pluck('id')->all();
+        $connection = config('database.connections.pgsql');
+        $at = microtime(true) + 1;
+        $work = static function () use ($connection, $ids, $key, $sid, $at): bool {
+            config(['database.default' => 'pgsql', 'database.connections.pgsql' => $connection, 'sms.enabled' => true, 'integrations.keys.v1' => $key, 'sms.webhook_origin' => 'https://flowmv.example.test']);
+            DB::purge('pgsql');
+            $api = new SmsApi(new Factory);
+            $api->http->preventStrayRequests();
+            $api->http->fake(function () use ($sid) {
+                usleep(100000);
+
+                return Factory::response(['account_sid' => $sid, 'sid' => 'SM'.bin2hex(random_bytes(16))], 201);
+            });
+            app()->instance(SmsApi::class, $api);
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+            foreach ($ids as $id) {
+                app(SmsDelivery::class)->process($id);
+            }
+
+            return true;
+        };
+        Concurrency::driver('process')->run([$work, $work]);
+        $this->assertSame(1, DB::table('sms_action_outbox')->where('status', 'accepted')->count());
+        $this->assertSame(1, DB::table('sms_action_outbox')->where('status', 'blocked')->count());
+        $this->assertSame(1, (int) DB::table('sms_action_outbox')->sum('attempt_count'));
+        $this->assertSame(1, DB::table('sms_action_outbox')->whereNotNull('budget_reserved_at')->count());
+    }
+
+    public function test_concurrent_telegram_buttons_make_exactly_one_internal_decision(): void
+    {
+        $key = base64_encode(random_bytes(32));
+        config(['integrations.telegram_enabled' => true, 'integrations.keys.v1' => $key]);
+        Queue::fake();
+        $admin = User::factory()->create();
+        $manager = User::factory()->create();
+        $employee = User::factory()->create();
+        $org = Organization::factory()->create(['created_by' => $admin->id]);
+        foreach ([[$admin, OrganizationRole::Admin], [$manager, OrganizationRole::Manager], [$employee, OrganizationRole::Employee]] as [$user, $role]) {
+            OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $user->id, 'role' => $role]);
+        }
+        DB::table('integration_approvals')->insert(['organization_id' => $org->id, 'provider_id' => 'telegram', 'approved' => true]);
+        $id = (string) Str::uuid();
+        DB::table('connections')->insert(['id' => $id, 'organization_id' => $org->id, 'provider_id' => 'telegram', 'name' => 'Approval race', 'credential_type' => 'bot_token', 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('credential_secrets')->insert(['connection_id' => $id, ...app(CredentialVault::class)->encrypt(['bot_token' => '123456:'.str_repeat('Synthetic_', 4)], $id), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('telegram_bots')->insert(['connection_id' => $id, 'bot_id' => '123456', 'active_bot_id' => '123456', 'username' => 'race_bot', 'approved_by' => $admin->id, 'webhook_configured' => true, 'webhook_secret_hash' => hash('sha256', 'synthetic-race-secret')]);
+        DB::table('telegram_destinations')->insert(['connection_id' => $id, 'chat_id' => '888', 'chat_type' => 'private', 'label' => 'Manager QA', 'approved_by' => $admin->id]);
+        DB::table('telegram_identity_links')->insert(['connection_id' => $id, 'user_id' => $manager->id, 'telegram_user_id' => '888', 'confirmed' => true]);
+        $workflow = Workflow::factory()->create(['organization_id' => $org->id, 'status' => 'published']);
+        DB::table('workflow_connection_grants')->insert(['organization_id' => $org->id, 'connection_id' => $id, 'workflow_id' => $workflow->id, 'operation' => 'telegram.approval', 'authorized_by' => $admin->id]);
+        $definition = WorkflowGraphs::publishable();
+        foreach ($definition['graph_definition']['nodes'] as &$node) {
+            if ($node['type'] === 'approval') {
+                $node['data']['telegram_approval'] = ['connection_id' => $id, 'destination' => '888'];
+            }
+        }
+        unset($node);
+        $version = WorkflowVersion::factory()->create(['workflow_id' => $workflow->id, 'node_registry_version' => 3, ...$definition]);
+        $workflow->forceFill(['current_published_version_id' => $version->id])->save();
+        $instance = app(StartWorkflowInstance::class)($employee, $org, $workflow, []);
+        $delivery = DB::table('telegram_approval_deliveries')->first();
+        app(TelegramApi::class)->http->preventStrayRequests();
+        app(TelegramApi::class)->http->fake(['https://api.telegram.org/bot*/sendMessage' => Factory::response(['ok' => true, 'result' => ['message_id' => 900]])]);
+        app(TelegramDecisions::class)->deliver($delivery->id);
+        $payload = app(CredentialVault::class)->decrypt($delivery, 'telegram-approval:'.$delivery->id);
+        foreach ([0, 1] as $index) {
+            app(TelegramIngress::class)->receive($id, 'synthetic-race-secret', ['update_id' => 100 + $index, 'callback_query' => ['id' => 'race-query-'.$index, 'data' => $payload['keyboard'][0][$index]['callback_data'], 'from' => ['id' => 888, 'is_bot' => false], 'message' => ['message_id' => 900, 'chat' => ['id' => 888, 'type' => 'private'], 'from' => ['id' => 123456, 'is_bot' => true]]]]);
+        }
+        $ids = DB::table('telegram_decision_callbacks')->orderBy('update_id')->pluck('id')->all();
+        $connection = config('database.connections.pgsql');
+        $at = microtime(true) + 1;
+        $work = static function (int $index) use ($connection, $key, $ids, $at): string {
+            config(['database.default' => 'pgsql', 'database.connections.pgsql' => $connection, 'integrations.telegram_enabled' => true, 'integrations.keys.v1' => $key]);
+            DB::purge('pgsql');
+            Queue::fake();
+            app(TelegramApi::class)->http->preventStrayRequests();
+            app(TelegramApi::class)->http->fake(['https://api.telegram.org/bot*/answerCallbackQuery' => Factory::response(['ok' => true, 'result' => true])]);
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+            app(TelegramDecisions::class)->process($ids[$index]);
+
+            return DB::table('telegram_decision_callbacks')->where('id', $ids[$index])->value('status');
+        };
+        $approve = static function () use ($work): string {
+            return $work(0);
+        };
+        $reject = static function () use ($work): string {
+            return $work(1);
+        };
+        $results = Concurrency::driver('process')->run([$approve, $reject]);
+        sort($results);
+        $this->assertSame(['done', 'rejected'], $results);
+        $this->assertSame(1, DB::table('workflow_submission_snapshots')->where('workflow_task_id', $delivery->workflow_task_id)->count());
+        $this->assertSame(1, DB::table('integration_audit_events')->where('event', 'telegram.decision.accepted')->count());
+        $this->assertSame(2, DB::table('telegram_decision_capabilities')->whereNotNull('consumed_at')->count());
+        $this->assertContains($instance->fresh()->status->value, ['completed', 'awaiting_revision']);
+    }
+
+    public function test_concurrent_slack_refresh_and_event_replay_are_serialized(): void
+    {
+        $key = base64_encode(random_bytes(32));
+        config(['slack.enabled' => true, 'slack.signing_secret' => 'synthetic-concurrency-signing-key', 'slack.app_id' => 'A12345678', 'integrations.keys.v1' => $key]);
+        $admin = User::factory()->create();
+        $org = Organization::factory()->create(['created_by' => $admin->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $admin->id, 'role' => OrganizationRole::Admin]);
+        DB::table('integration_approvals')->insert(['organization_id' => $org->id, 'provider_id' => 'slack', 'approved' => true]);
+        $id = (string) Str::uuid();
+        DB::table('connections')->insert(['id' => $id, 'organization_id' => $org->id, 'provider_id' => 'slack', 'name' => 'Slack race', 'credential_type' => 'oauth', 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('slack_installations')->insert(['connection_id' => $id, 'workspace_id' => 'T12345678', 'active_workspace_id' => 'T12345678', 'bot_user_id' => 'U99999999', 'scopes' => json_encode(config('slack.scopes')), 'approved_by' => $admin->id, 'health' => 'healthy', 'token_expires_at' => now()->subMinute()]);
+        DB::table('credential_secrets')->insert(['connection_id' => $id, ...app(CredentialVault::class)->encrypt(['access_token' => 'synthetic-old', 'refresh_token' => 'synthetic-old-refresh'], $id), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('slack_channels')->insert(['connection_id' => $id, 'channel_id' => 'C12345678', 'label' => 'QA', 'approved_by' => $admin->id]);
+        DB::table('slack_identity_links')->insert(['connection_id' => $id, 'user_id' => $admin->id, 'slack_user_id' => 'U12345678', 'confirmed' => true]);
+        $connection = config('database.connections.pgsql');
+        $at = microtime(true) + 1;
+        $work = static function () use ($connection, $key, $id, $at): string {
+            config(['database.default' => 'pgsql', 'database.connections.pgsql' => $connection, 'slack.enabled' => true, 'slack.signing_secret' => 'synthetic-concurrency-signing-key', 'slack.app_id' => 'A12345678', 'integrations.keys.v1' => $key]);
+            DB::purge('pgsql');
+            Queue::fake();
+            $api = app(SlackApi::class);
+            $api->http->preventStrayRequests();
+            $api->http->fake([
+                'https://slack.com/api/oauth.v2.access' => Factory::response(['ok' => true, 'token_type' => 'bot', 'access_token' => 'synthetic-new', 'refresh_token' => 'synthetic-new-refresh', 'expires_in' => 43200, 'scope' => implode(',', config('slack.scopes'))]),
+                'https://slack.com/api/auth.test' => Factory::response(['ok' => true, 'team_id' => 'T12345678', 'user_id' => 'U99999999']),
+            ]);
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+            $token = app(SlackTokens::class)->access($id);
+            $raw = json_encode(['api_app_id' => 'A12345678', 'type' => 'event_callback', 'team_id' => 'T12345678', 'event_id' => 'EvSameEvent', 'event' => ['type' => 'app_mention', 'channel' => 'C12345678', 'user' => 'U12345678', 'text' => 'Synthetic race']]);
+            $timestamp = (string) now()->timestamp;
+            app(SlackIngress::class)->receive($raw, $timestamp, 'v0='.hash_hmac('sha256', 'v0:'.$timestamp.':'.$raw, config('slack.signing_secret')));
+
+            return hash('sha256', $token);
+        };
+        $results = Concurrency::driver('process')->run([$work, $work]);
+        $this->assertSame($results[0], $results[1]);
+        $this->assertSame(1, DB::table('integration_audit_events')->where('event', 'slack.token.refreshed')->count());
+        $this->assertDatabaseCount('slack_inbound_events', 1);
+        $secret = app(CredentialVault::class)->decrypt(DB::table('credential_secrets')->where('connection_id', $id)->first(), $id);
+        $this->assertSame('synthetic-new-refresh', $secret['refresh_token']);
+    }
+
+    public function test_concurrent_email_refresh_rotates_once_and_notification_receipts_deduplicate(): void
+    {
+        $key = base64_encode(random_bytes(32));
+        config(['email_integrations.enabled' => true, 'integrations.keys.v1' => $key, 'email_integrations.outlook.client_id' => 'synthetic-client', 'email_integrations.outlook.client_secret' => 'synthetic-secret']);
+        $admin = User::factory()->create();
+        $org = Organization::factory()->create(['created_by' => $admin->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $admin->id, 'role' => OrganizationRole::Admin]);
+        DB::table('integration_approvals')->insert(['organization_id' => $org->id, 'provider_id' => 'outlook', 'approved' => true]);
+        $id = (string) Str::uuid();
+        DB::table('connections')->insert(['id' => $id, 'organization_id' => $org->id, 'owner_user_id' => null, 'provider_id' => 'outlook', 'name' => 'Concurrent mailbox', 'credential_type' => 'oauth', 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('email_mailboxes')->insert(['connection_id' => $id, 'address' => 'race@example.com', 'account_id' => 'synthetic-account', 'active_identity' => hash('sha256', $id), 'capabilities' => '["read"]', 'approved_by' => $admin->id, 'credential_generation' => 1, 'token_expires_at' => now()->subMinute(), 'health' => 'ready', 'connected_at' => now()]);
+        DB::table('credential_secrets')->insert(['connection_id' => $id, ...app(CredentialVault::class)->encrypt(['access_token' => 'expired-synthetic', 'refresh_token' => 'old-synthetic-refresh', 'scope' => 'Mail.Read User.Read'], $id), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('email_sync_state')->insert(['connection_id' => $id, ...app(CredentialVault::class)->encrypt(['cursor' => null, 'next' => null, 'subscription_secret' => 'synthetic-state'], 'email-sync:'.$id), 'subscription_id' => 'synthetic-sub', 'subscription_secret_hash' => hash('sha256', 'synthetic-state'), 'available_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        $connection = config('database.connections.pgsql');
+        $orgId = $org->id;
+        $at = microtime(true) + 1;
+        $work = static function () use ($key, $id, $connection, $orgId, $at): string {
+            config(['database.default' => 'pgsql', 'database.connections.pgsql' => $connection, 'email_integrations.enabled' => true, 'integrations.keys.v1' => $key, 'email_integrations.outlook.client_id' => 'synthetic-client', 'email_integrations.outlook.client_secret' => 'synthetic-secret']);
+            DB::purge('pgsql');
+            Queue::fake();
+            $http = app(EmailHttp::class);
+            $http->http->preventStrayRequests();
+            $http->http->fake(fn () => Factory::response(['access_token' => 'new-synthetic-access', 'refresh_token' => 'new-synthetic-refresh', 'scope' => 'Mail.Read User.Read', 'expires_in' => 3600, 'token_type' => 'Bearer']));
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+            $token = app(EmailTokens::class)->get($orgId, $id);
+            app(EmailIngress::class)->outlook(['value' => [['subscriptionId' => 'synthetic-sub', 'clientState' => 'synthetic-state', 'changeType' => 'created', 'resourceData' => ['id' => 'same-message']]]]);
+
+            return hash('sha256', $token);
+        };
+        $results = Concurrency::driver('process')->run([$work, $work]);
+        $this->assertSame($results[0], $results[1]);
+        $this->assertSame(1, DB::table('integration_audit_events')->where('event', 'email.token.refreshed')->count());
+        $this->assertDatabaseCount('email_notification_receipts', 1);
+        $secret = app(CredentialVault::class)->decrypt(DB::table('credential_secrets')->where('connection_id', $id)->first(), $id);
+        $this->assertSame('new-synthetic-refresh', $secret['refresh_token']);
+    }
+
+    public function test_concurrent_telegram_receipt_activation_and_delivery_are_deduplicated(): void
+    {
+        $key = base64_encode(random_bytes(32));
+        config(['integrations.telegram_enabled' => true, 'integrations.keys.v1' => $key]);
+        $admin = User::factory()->create();
+        $member = User::factory()->create();
+        $organization = Organization::factory()->create(['created_by' => $admin->id]);
+        foreach ([[$admin, OrganizationRole::Admin], [$member, OrganizationRole::Employee]] as [$user, $role]) {
+            OrganizationMembership::factory()->create(['organization_id' => $organization->id, 'user_id' => $user->id, 'role' => $role]);
+        }
+        DB::table('integration_approvals')->insert(['organization_id' => $organization->id, 'provider_id' => 'telegram', 'approved' => true]);
+        $id = (string) Str::uuid();
+        DB::table('connections')->insert(['id' => $id, 'organization_id' => $organization->id, 'owner_user_id' => null, 'provider_id' => 'telegram', 'name' => 'Concurrent test bot', 'credential_type' => 'bot_token', 'status' => 'enabled', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('credential_secrets')->insert(['connection_id' => $id, ...app(CredentialVault::class)->encrypt(['bot_token' => '123456:'.str_repeat('Synthetic_', 4)], $id), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('telegram_bots')->insert(['connection_id' => $id, 'bot_id' => '123456', 'active_bot_id' => '123456', 'username' => 'qa_bot', 'approved_by' => $admin->id, 'webhook_secret_hash' => hash('sha256', 'synthetic-webhook-secret'), 'webhook_configured' => true]);
+        DB::table('telegram_destinations')->insert(['connection_id' => $id, 'chat_id' => '11199', 'chat_type' => 'private', 'label' => 'Test inbox', 'approved_by' => $admin->id]);
+        DB::table('telegram_identity_links')->insert(['connection_id' => $id, 'user_id' => $member->id, 'telegram_user_id' => '11199', 'confirmed' => true]);
+        $workflow = Workflow::factory()->create(['organization_id' => $organization->id, 'status' => 'published']);
+        foreach (['telegram.message', 'telegram.send_message'] as $op) {
+            DB::table('workflow_connection_grants')->insert(['connection_id' => $id, 'organization_id' => $organization->id, 'workflow_id' => $workflow->id, 'authorized_by' => $admin->id, 'operation' => $op]);
+        }
+        $trigger = (string) Str::uuid();
+        $send = (string) Str::uuid();
+        $end = (string) Str::uuid();
+        $graph = ['nodes' => [
+            WorkflowGraphs::node($trigger, 'telegram_trigger', 0, 0, ['label' => 'Trigger', 'connection_id' => $id, 'destination' => '11199', 'input_mapping' => []]),
+            WorkflowGraphs::node($send, 'telegram_send_message', 100, 0, ['label' => 'Send', 'connection_id' => $id, 'destination' => '11199', 'text' => 'Request {{request.uuid}}', 'allowed_field_ids' => []]),
+            WorkflowGraphs::node($end, 'end', 200, 0, ['label' => 'End', 'result' => 'completed']),
+        ], 'edges' => [WorkflowGraphs::edge($trigger, $send, 'out'), WorkflowGraphs::edge($send, $end, 'out')]];
+        $version = WorkflowVersion::factory()->create(['workflow_id' => $workflow->id, 'node_registry_version' => 3, 'graph_definition' => $graph]);
+        $workflow->forceFill(['current_published_version_id' => $version->id])->save();
+        app(TelegramWorkflow::class)->subscribe($admin, $workflow, $version);
+        $connection = config('database.connections.pgsql');
+        $orgId = $organization->id;
+        $event = ['update_id' => 100, 'message' => ['message_id' => 100, 'date' => now()->timestamp, 'from' => ['id' => 11199, 'is_bot' => false], 'chat' => ['id' => 11199, 'type' => 'private'], 'text' => 'Synthetic concurrent event']];
+        $phase = 'receive';
+        $workId = '';
+        $at = microtime(true) + 1;
+        $work = static function () use ($connection, $key, $id, $orgId, $event, &$phase, &$workId, &$at): string {
+            config(['database.default' => 'pgsql', 'database.connections.pgsql' => $connection, 'integrations.telegram_enabled' => true, 'integrations.keys.v1' => $key]);
+            DB::purge('pgsql');
+            Queue::fake();
+            app(TelegramApi::class)->http->preventStrayRequests();
+            app(TelegramApi::class)->http->fake(function () use ($orgId, $id) {
+                DB::table('integration_audit_events')->insert(['organization_id' => $orgId, 'connection_id' => $id, 'actor_user_id' => null, 'event' => 'telegram.test.http_attempt', 'created_at' => now()]);
+
+                return Factory::response(['ok' => true, 'result' => ['message_id' => 900]]);
+            });
+            while (microtime(true) < $at) {
+                usleep(1000);
+            }
+            if ($phase === 'receive') {
+                app(TelegramIngress::class)->receive($id, 'synthetic-webhook-secret', $event);
+            } elseif ($phase === 'activate') {
+                app(TelegramActivation::class)->process($workId);
+            } else {
+                app(TelegramDelivery::class)->process($workId);
+            }
+
+            return 'done';
+        };
+        Concurrency::driver('process')->run([$work, $work]);
+        $this->assertSame(1, DB::table('telegram_inbound_events')->count());
+        $this->assertSame(1, DB::table('integration_trigger_activations')->count());
+        $phase = 'activate';
+        $workId = DB::table('integration_trigger_activations')->value('id');
+        $at = microtime(true) + 1;
+        Concurrency::driver('process')->run([$work, $work]);
+        $this->assertSame(1, WorkflowInstance::count());
+        $this->assertSame(1, DB::table('integration_action_outbox')->count());
+        $phase = 'deliver';
+        $workId = DB::table('integration_action_outbox')->value('id');
+        $at = microtime(true) + 1;
+        Concurrency::driver('process')->run([$work, $work]);
+        $this->assertSame('sent', DB::table('integration_action_outbox')->value('status'));
+        $this->assertSame(1, DB::table('integration_audit_events')->where('event', 'telegram.test.http_attempt')->count());
+    }
 
     /** Forward-only migrations are recreated only in the guarded disposable database. */
     public function runDatabaseMigrations(): void

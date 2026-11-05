@@ -14,7 +14,16 @@ use App\Models\WorkflowInstance;
 use App\Models\WorkflowRevisionCounter;
 use App\Models\WorkflowTask;
 use App\Models\WorkflowVersion;
+use App\Services\AI\AiNodes;
+use App\Services\AI\AiWorkflow;
+use App\Services\Integrations\EmailNodes;
+use App\Services\Integrations\EmailWorkflow;
 use App\Services\Integrations\IntegrationRuntime;
+use App\Services\Integrations\SlackWorkflow;
+use App\Services\Integrations\SmsNodes;
+use App\Services\Integrations\SmsWorkflow;
+use App\Services\Integrations\TelegramDecisions;
+use App\Services\Integrations\TelegramWorkflow;
 use App\Services\Workflows\Nodes\NodeRegistry;
 use Illuminate\Database\UniqueConstraintViolationException;
 
@@ -80,7 +89,7 @@ class WorkflowEngine
                 return;
             }
 
-            if ($type === 'start') {
+            if ($type === 'start' || $type === 'telegram_trigger' || $type === 'email_trigger' || $type === 'slack_trigger') {
                 $nodeId = $this->successor($graph, $instance, $actor, $nodeId, 'out');
 
                 if ($nodeId === null) {
@@ -88,6 +97,19 @@ class WorkflowEngine
                 }
 
                 continue;
+            }
+
+            if (isset(AiNodes::OPERATIONS[$type])) {
+                try {
+                    app(AiWorkflow::class)->execute($instance, $version, $actor, $node);
+                } catch (\Throwable $error) {
+                    if (app()->environment('demo') && config('demo.seeding') === true) {
+                        throw $error;
+                    }
+                    $this->fail($instance, $actor, WorkflowFailureCode::InvalidGraph, $nodeId);
+                }
+
+                return;
             }
 
             if ($type === 'condition') {
@@ -135,6 +157,86 @@ class WorkflowEngine
                     return;
                 }
                 $nodeId = $this->successor($graph, $instance, $actor, $nodeId, 'out');
+                if ($nodeId === null) {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (in_array($type, ['telegram_send_message', 'telegram_notification', 'telegram_filter'], true)) {
+                try {
+                    $telegram = app(TelegramWorkflow::class);
+                    $handle = 'out';
+                    if ($type === 'telegram_filter') {
+                        $matched = $telegram->filter($instance, $node['data']);
+                        $handle = $matched ? 'matched' : 'unmatched';
+                        $this->events->record($instance, $actor, WorkflowEventType::TelegramFilterEvaluated, $nodeId, ['matched' => $matched]);
+                    } else {
+                        $telegram->enqueue($instance, $version, $actor, $node, $nodeId);
+                    }
+                } catch (\Throwable) {
+                    $this->fail($instance, $actor, WorkflowFailureCode::InvalidGraph, $nodeId);
+
+                    return;
+                }
+                $nodeId = $this->successor($graph, $instance, $actor, $nodeId, $handle);
+                if ($nodeId === null) {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (in_array($type, ['slack_send_message', 'slack_notification', 'slack_filter'], true)) {
+                try {
+                    $slack = app(SlackWorkflow::class);
+                    $handle = 'out';
+                    if ($type === 'slack_filter') {
+                        $matched = $slack->filter($instance, $node['data']);
+                        $handle = $matched ? 'matched' : 'unmatched';
+                        $this->events->record($instance, $actor, WorkflowEventType::SlackFilterEvaluated, $nodeId, ['matched' => $matched]);
+                    } else {
+                        $slack->enqueue($instance, $version, $actor, $node, $nodeId);
+                    }
+                } catch (\Throwable) {
+                    $this->fail($instance, $actor, WorkflowFailureCode::InvalidGraph, $nodeId);
+
+                    return;
+                }
+                $nodeId = $this->successor($graph, $instance, $actor, $nodeId, $handle);
+                if ($nodeId === null) {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (in_array($type, SmsNodes::TYPES, true)) {
+                try {
+                    app(SmsWorkflow::class)->enqueue($instance, $version, $actor, $node);
+                } catch (\Throwable) {
+                    $this->fail($instance, $actor, WorkflowFailureCode::InvalidGraph, $nodeId);
+
+                    return;
+                }
+                $nodeId = $this->successor($graph, $instance, $actor, $nodeId, 'out');
+                if ($nodeId === null) {
+                    return;
+                }
+
+                continue;
+            }
+
+            if (in_array($type, EmailNodes::TYPES, true)) {
+                try {
+                    $handle = app(EmailWorkflow::class)->execute($instance, $version, $actor, $node);
+                } catch (\Throwable) {
+                    $this->fail($instance, $actor, WorkflowFailureCode::InvalidGraph, $nodeId);
+
+                    return;
+                }
+                $nodeId = $this->successor($graph, $instance, $actor, $nodeId, $handle);
                 if ($nodeId === null) {
                     return;
                 }
@@ -246,6 +348,9 @@ class WorkflowEngine
             'status' => WorkflowTaskStatus::Open,
             'assigned_at' => now(),
         ], WorkflowInstanceStatus::AwaitingApproval, null);
+        if (isset($node['data']['telegram_approval'])) {
+            app(TelegramDecisions::class)->enqueue($instance, $node);
+        }
     }
 
     /**

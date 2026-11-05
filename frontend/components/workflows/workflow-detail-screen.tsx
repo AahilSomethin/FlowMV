@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { VersionComparison } from "@/components/workflows/version-comparison";
 import { WorkflowCanvas } from "@/components/workflows/workflow-canvas";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";
 import { LoadingState } from "@/components/patterns/loading-state";
@@ -207,6 +208,7 @@ export function WorkflowDetailScreen({ workflowId }: { workflowId: string }) {
           />
         </div>
       ) : null}
+      <VersionComparison organizationId={organizationId} workflowId={workflowId} versions={versions}/>
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-medium">Version history</h2>
         {versions.length === 0 ? <p className="text-sm text-muted-foreground">No published versions yet.</p> : null}

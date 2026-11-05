@@ -1,0 +1,13 @@
+.git
+**/node_modules
+**/vendor
+**/.env*
+**/.next*
+backend/storage
+backend/bootstrap/cache/*.php
+**/coverage
+**/*.log
+.vscode
+
+services/ai-go/bin
+**/*.test

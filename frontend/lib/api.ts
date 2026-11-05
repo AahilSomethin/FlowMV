@@ -58,6 +58,11 @@ export type ApiInit = RequestInit & {
 const RETRYABLE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "PUT", "DELETE"]);
 
 let unauthorizedHandler: (() => void) | null = null;
+let sessionGeneration = 0;
+
+export function invalidateApiSession(): void {
+  sessionGeneration++;
+}
 
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler;
@@ -74,14 +79,28 @@ function apiOrigin(): string {
 function readXsrfToken(): string | null {
   const match = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
 
-  return match?.[1] ? decodeURIComponent(match[1]) : null;
+  try {
+    return match?.[1] ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
 }
 
-async function ensureCsrfCookie(): Promise<void> {
+let csrfBootstrap: Promise<void> | null = null;
+
+async function ensureCsrfCookie(force = false): Promise<void> {
+  if (!force && readXsrfToken()) return;
+  if (csrfBootstrap) return csrfBootstrap;
+  csrfBootstrap = bootstrapCsrfCookie();
+  try { await csrfBootstrap; } finally { csrfBootstrap = null; }
+}
+
+async function bootstrapCsrfCookie(): Promise<void> {
   let response: Response;
 
   try {
     response = await fetch(`${apiOrigin()}/sanctum/csrf-cookie`, {
+      cache: "no-store",
       credentials: "include",
       signal: AbortSignal.timeout(30_000),
       headers: { Accept: "application/json" },
@@ -100,12 +119,13 @@ function canRetryAfter419(method: string, idempotencyKey: string | undefined): b
 }
 
 async function send<T>(path: string, init: ApiInit): Promise<T> {
+  const generation = sessionGeneration;
   const { idempotencyKey, ...requestInit } = init;
   const method = (requestInit.method ?? "GET").toUpperCase();
   const headers = new Headers(requestInit.headers);
   headers.set("Accept", "application/json");
 
-  if (requestInit.body !== undefined && !headers.has("Content-Type")) {
+  if (requestInit.body !== undefined && !(requestInit.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -127,6 +147,7 @@ async function send<T>(path: string, init: ApiInit): Promise<T> {
   try {
     response = await fetch(`${apiOrigin()}${path}`, {
       ...requestInit,
+      cache: "no-store",
       signal: requestInit.signal ? AbortSignal.any([requestInit.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
       method,
       headers,
@@ -146,7 +167,7 @@ async function send<T>(path: string, init: ApiInit): Promise<T> {
   })) as ErrorBody & { data?: T };
 
   if (response.status === 401) {
-    notifyUnauthorized();
+    if (generation === sessionGeneration) notifyUnauthorized();
     throw new ApiError(body.message ?? "Unauthenticated.", 401, body.errors ?? {}, body.violations ?? []);
   }
 
@@ -179,10 +200,13 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     }
 
     if (eligible) {
-      await ensureCsrfCookie();
+      await ensureCsrfCookie(true);
 
       return send<T>(path, init);
     }
+
+    // Prepare a manual retry without replaying an unkeyed mutation.
+    await ensureCsrfCookie(true);
 
     if (path !== "/api/v1/me") {
       await confirmSession();

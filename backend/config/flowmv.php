@@ -16,4 +16,6 @@ return [
 
     'invitation_ttl_days' => 7,
 
+    'migrator_secret_present' => (bool) env('DB_OWNER_PASSWORD'),
+
 ];

@@ -1,5 +1,6 @@
 "use client";
 
+import {isAiNode} from "@/lib/ai";
 import { useEffect, useRef, useState } from "react";
 import {
   Background,
@@ -73,7 +74,7 @@ function CanvasInner({
       ...node.data,
       invalid: invalid.has(node.id),
       warning: violations.find((item) => item.node_id === node.id)?.message,
-      disconnected: node.type !== "start" && !edges.some((edge) => edge.target === node.id),
+      disconnected: node.type !== "start" && node.type !== "telegram_trigger" && node.type !== "email_trigger" && node.type !== "slack_trigger" && !edges.some((edge) => edge.target === node.id),
       summary: nodeSummary(node.type, node.data, fields),
     },
     draggable: !readOnly,
@@ -127,11 +128,11 @@ function CanvasInner({
     const target = nodes.find((node) => node.id === connection.target);
     const handle = connection.sourceHandle ?? "";
 
-    if (readOnly || !source || !target || source.id === target.id || target.type === "start" || !SOURCE_HANDLES[source.type].includes(handle)) {
+    if (readOnly || !source || !target || source.id === target.id || target.type === "start" || target.type === "telegram_trigger" || target.type === "email_trigger" || target.type === "slack_trigger" || !SOURCE_HANDLES[source.type].includes(handle)) {
       return false;
     }
 
-    if (handle === "return" && target.type !== "approval") {
+    if (handle === "return" && (target.type !== "approval" && target.type !== "document_validation" && !isAiNode(target.type))) {
       return false;
     }
 

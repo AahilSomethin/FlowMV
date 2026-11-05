@@ -49,7 +49,7 @@ class ConnectionController extends Controller
             $workflowId = DB::table('workflows')->where('organization_id', $organizationId)->where('uuid', $request->input('workflow_id'))->when($role === 'employee', fn ($query) => $query->where('status', 'published'))->value('id');
             abort_if($workflowId === null, 404);
         }
-        $items = DB::table('connections')->where('organization_id', $organizationId)->where(function ($query) use ($request, $admin, $workflowId) {
+        $items = DB::table('connections')->where('provider_id', 'local_mock')->where('organization_id', $organizationId)->where(function ($query) use ($request, $admin, $workflowId) {
             $query->where('owner_user_id', $request->user()->id);
             if ($admin) {
                 $query->orWhereNull('owner_user_id');

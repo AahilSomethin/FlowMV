@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   distDir: process.env.FLOWMV_DIST_DIR ?? ".next",
   async headers() {
     return [
+      {source:"/integrations/slack-callback",headers:[{key:"Referrer-Policy",value:"no-referrer"},{key:"Cache-Control",value:"no-store, private"},{key:"X-Robots-Tag",value:"noindex, nofollow"}]},
+      {source:"/integrations/email-callback/:path*",headers:[{key:"Referrer-Policy",value:"no-referrer"},{key:"Cache-Control",value:"no-store, private"},{key:"X-Robots-Tag",value:"noindex, nofollow"}]},
       {
         source: "/invitations/accept",
         headers: [

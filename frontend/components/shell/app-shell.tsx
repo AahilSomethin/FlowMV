@@ -10,11 +10,13 @@ import { AccountMenu } from "@/components/shell/account-menu";
 import { NotificationsMenu } from "@/components/shell/notifications-menu";
 import { AppBreadcrumbs } from "@/components/shell/app-breadcrumbs";
 import { AppSidebar } from "@/components/shell/app-sidebar";
+import { DemoNotice } from "@/components/shell/demo-notice";
 import { WorkspaceSwitcher } from "@/components/shell/workspace-switcher";
 import { WorkspaceTransition, useWorkspaceTransition } from "@/components/shell/workspace-transition";
 import { ErrorState } from "@/components/patterns/error-state";
 import { LoadingState } from "@/components/patterns/loading-state";
 import { useAuth } from "@/lib/auth";
+import { IntentPrefetchProvider } from "@/components/shell/intent-link";
 
 function ShellSidebarTrigger() {
   const { open, openMobile, isMobile } = useSidebar();
@@ -28,8 +30,10 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const canvas = /^\/workflows\/[^/]+\/edit$/.test(pathname);
   const organizationKey = user?.current_organization?.uuid ?? "none";
+  const accessKey = `${user?.id}:${organizationKey}:${user?.current_organization?.role}`;
 
   return (
+    <IntentPrefetchProvider scope={accessKey} pathname={pathname} role={user?.current_organization?.role}>
     <TooltipProvider>
       <SidebarProvider key={canvas ? "studio" : "workspace"} defaultOpen={!canvas}>
         <AppSidebar />
@@ -53,6 +57,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
             <AccountMenu />
           </div>
         </header>
+        {organizationKey !== "none" ? <DemoNotice key={organizationKey} organizationId={organizationKey}/> : null}
         <div id="content" className={canvas ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "flex min-h-0 flex-1 flex-col"}>
           {canvas ? (
             pending ? (
@@ -60,7 +65,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
                 <LoadingState label="Switching workspace" />
               </div>
             ) : (
-              <div key={organizationKey} className="flex min-h-0 flex-1 flex-col">
+              <div key={accessKey} className="flex min-h-0 flex-1 flex-col">
                 {children}
               </div>
             )
@@ -69,7 +74,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
               {pending ? (
                 <LoadingState label="Switching workspace" />
               ) : (
-                <div key={organizationKey} className="flex flex-col gap-6">
+                <div key={accessKey} className="flex flex-col gap-6">
                   {children}
                 </div>
               )}
@@ -79,6 +84,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
       </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
+    </IntentPrefetchProvider>
   );
 }
 
@@ -113,7 +119,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             />
           </div>
         </main>
-        <div hidden>{children}</div>
       </>
     );
   }
@@ -122,9 +127,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <>
         <main className="flex flex-1 items-center justify-center p-4">
-          <p className="text-sm text-muted-foreground">Checking your session</p>
+          <p role="status" className="text-sm text-muted-foreground">Checking your session</p>
         </main>
-        <div hidden>{children}</div>
       </>
     );
   }

@@ -1,0 +1,14 @@
+"use client";
+import {useState} from "react";
+import {api,ApiError} from "@/lib/api";
+import {Button} from "@/components/ui/button";
+import {Label} from "@/components/ui/label";
+import {Card,CardHeader,CardTitle,CardContent,CardDescription} from "@/components/ui/card";
+import type {WorkflowVersionSummary} from "@/lib/workflows/types";
+export type VersionComparison={from:number;to:number;changes:{node_id:string;kind:string;type:string;fields:string[]}[];connections_changed:boolean;form_structure_changed:boolean;notice:string};
+export function VersionComparison({organizationId,workflowId,versions}:{organizationId:string;workflowId:string;versions:WorkflowVersionSummary[]}){
+  const [from,setFrom]=useState(""),[to,setTo]=useState(""),[result,setResult]=useState<VersionComparison|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+  if(versions.length<2)return null;
+  async function compare(e:React.FormEvent){e.preventDefault();if(busy)return;setBusy(true);setError("");setResult(null);try{setResult(await api<VersionComparison>(`/api/v1/organizations/${organizationId}/workflows/${workflowId}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`));}catch(e){setError(e instanceof ApiError?e.message:"Could not compare these versions.");}finally{setBusy(false);}}
+  return <Card><CardHeader><CardTitle>Compare published versions</CardTitle><CardDescription>Read-only structural changes. Message text, request answers and credential references stay out of this comparison.</CardDescription></CardHeader><CardContent className="space-y-4"><form onSubmit={compare} className="flex flex-wrap items-end gap-3">{[{id:"from",label:"Earlier version",value:from,set:setFrom},{id:"to",label:"Later version",value:to,set:setTo}].map(s=><div key={s.id} className="grid min-w-40 flex-1 gap-2"><Label htmlFor={`compare-${s.id}`}>{s.label}</Label><select required id={`compare-${s.id}`} className="h-10 rounded-md border bg-background px-3" value={s.value} onChange={e=>s.set(e.target.value)}><option value="">Choose a version</option>{versions.map(v=><option key={v.uuid} value={v.uuid}>Version {v.version_number}</option>)}</select></div>)}<Button type="submit" variant="outline" disabled={busy||!from||!to}>{busy?"Comparing…":"Compare"}</Button></form>{error&&<p role="alert">{error}</p>}{result&&<div role="status" className="space-y-2 text-sm"><p>Version {result.from} → {result.to}</p><p>{result.connections_changed?"Routing changed":"Routing unchanged"} · {result.form_structure_changed?"Request form structure changed":"Request form structure unchanged"}</p>{result.changes.length===0?<p>No step changes.</p>:<ul className="space-y-2">{result.changes.map(c=><li key={c.node_id} className="break-words">{c.type.replaceAll("_"," ")}: {c.kind.replaceAll("_"," ")}{c.fields.length?` (${c.fields.join(", ")})`:""}</li>)}</ul>}<p className="text-muted-foreground">{result.notice}</p></div>}</CardContent></Card>;
+}

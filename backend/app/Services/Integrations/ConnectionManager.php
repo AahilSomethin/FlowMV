@@ -11,7 +11,21 @@ class ConnectionManager
 
     public function audit(int $organizationId, ?string $connectionId, ?int $actorId, string $event): void
     {
-        DB::table('integration_audit_events')->insert(['organization_id' => $organizationId, 'connection_id' => $connectionId, 'actor_user_id' => $actorId, 'event' => $event, 'created_at' => now()]);
+        $source = null;
+        $verifiedEvents = ['telegram.test', 'slack.connection.test', 'sms.connection.test', 'email.test', 'telegram.delivery.sent', 'slack.delivery.accepted', 'sms.delivery.accepted', 'email.delivery.accepted', 'telegram.approval.accepted', 'sms.status.delivered', 'ai.connection.test', 'ai.processing.completed'];
+        if ($connectionId !== null && in_array($event, $verifiedEvents, true)) {
+            $provider = DB::table('connections')->where('id', $connectionId)->where('organization_id', $organizationId)->value('provider_id');
+            $simulated = match ($provider) {
+                'telegram' => config('integrations.telegram_simulated'),
+                'slack' => config('slack.simulated'),
+                'twilio_sms' => config('sms.simulated'),
+                'gmail', 'outlook' => config('email_integrations.simulated'),
+                'ai_openai', 'ai_gemini' => config('ai.simulated'),
+                default => true,
+            };
+            $source = $simulated || app()->runningUnitTests() ? 'simulated' : 'provider_response';
+        }
+        DB::table('integration_audit_events')->insert(['organization_id' => $organizationId, 'connection_id' => $connectionId, 'actor_user_id' => $actorId, 'event' => $event, 'evidence_source' => $source, 'created_at' => now()]);
     }
 
     public function reauthorize(int $userId, int $organizationId, string $id, #[\SensitiveParameter] array $credentials): string
@@ -50,6 +64,7 @@ class ConnectionManager
         DB::transaction(function () use ($userId, $organizationId, $id, $action, $data, $credentials) {
             $connection = DB::table('connections')->where('organization_id', $organizationId)->where('id', $id)->lockForUpdate()->first();
             abort_if($connection === null, 404);
+            abort_unless($connection->provider_id === 'local_mock', 404);
             $this->access->manage($userId, $connection);
             abort_if($connection->status === 'revoked', 409, 'Connection has been revoked.');
             if ($action === 'rename') {

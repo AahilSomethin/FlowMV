@@ -1,3 +1,4 @@
+import {isAiNode} from "@/lib/ai";
 import { createNode, snapshotKey } from "@/lib/workflows/definition";
 import type { FormDefinition, FormField, GraphDefinition, NodeType, WorkflowEdge, WorkflowNode, WorkflowNodeData } from "@/lib/workflows/types";
 import { SOURCE_HANDLES } from "@/lib/workflows/types";
@@ -61,6 +62,14 @@ export function addWorkflowNode(
   if (type === "start" && state.nodes.some((node) => node.type === "start")) {
     return state;
   }
+  if (type === "start" || type === "telegram_trigger" || type === "email_trigger" || type === "slack_trigger") {
+    const previous = state.nodes.find(node=>node.type === "start" || node.type === "telegram_trigger" || node.type === "email_trigger" || node.type === "slack_trigger");
+    if (previous && previous.type !== type) {
+      const replacement = createNode(type, previous.position, previous.id);
+      return commit(state, {...state, nodes:state.nodes.map(node=>node.id === previous.id ? replacement : node)});
+    }
+    if (previous) return state;
+  }
 
   return commit(state, {
     nodes: [...state.nodes, createNode(type, position, id)],
@@ -106,7 +115,7 @@ export function connectNodes(
   const source = state.nodes.find((node) => node.id === connection.source);
   const target = state.nodes.find((node) => node.id === connection.target);
 
-  if (!source || !target || target.type === "start") {
+  if (!source || !target || target.type === "start" || target.type === "telegram_trigger" || target.type === "email_trigger" || target.type === "slack_trigger") {
     return state;
   }
 
@@ -114,7 +123,7 @@ export function connectNodes(
     return state;
   }
 
-  if (connection.sourceHandle === "return" && target.type !== "approval") {
+  if (connection.sourceHandle === "return" && (target.type !== "approval" && target.type !== "document_validation" && !isAiNode(target.type))) {
     return state;
   }
 

@@ -8,6 +8,7 @@ export type InstanceStatus =
   | "awaiting_revision"
   | "awaiting_assignment"
   | "awaiting_delay"
+  | "awaiting_ai"
   | "completed"
   | "rejected"
   | "failed";
@@ -66,6 +67,8 @@ export type InstanceEvent = {
 };
 
 export type WorkflowInstance = {
+  ai_runs?: string[];
+  documents?: {id:string;name:string;status:string;expires_at:string}[];
   uuid: string;
   status: InstanceStatus;
   failure_code: FailureCode | null;
@@ -226,6 +229,7 @@ export function instanceStatusLabel(status: InstanceStatus): string {
       return "Needs revision";
     case "awaiting_assignment":
       return "Awaiting assignment";
+    case "awaiting_ai": return "Awaiting AI advice";
     case "awaiting_delay":
       return "Delayed";
     case "completed":
@@ -247,6 +251,7 @@ export function instanceStatusTone(status: InstanceStatus): "neutral" | "attenti
     status === "awaiting_revision" ||
     status === "awaiting_assignment" ||
     status === "awaiting_delay" ||
+    status === "awaiting_ai" ||
     status === "running"
   ) {
     return "attention";
@@ -275,7 +280,33 @@ export function failureLabel(code: FailureCode | null): string {
 }
 
 export function eventLabel(eventType: string): string {
+  if (eventType === "ai_queued") return "AI analysis queued";
+  if (eventType === "ai_evaluated") return "AI advice evaluated · human review required";
+  if (eventType === "email_confirmed") return "Email confirmed by member";
+  if (eventType === "email_filter_evaluated") return "Email rules checked";
+  if (eventType === "attachments_inspected") return "Private attachments inspected";
+  if (eventType === "document_validated") return "Document fields validated";
+  if (eventType === "email_queued") return "Email queued";
+  if (eventType === "email_accepted") return "Email accepted by provider";
+  if (eventType === "email_delivery_failed") return "Email delivery needs attention";
   switch (eventType) {
+    case "slack_trigger_activated": return "Slack request activated";
+    case "telegram_approval_queued": return "Telegram approval buttons queued";
+    case "telegram_approval_accepted": return "Telegram accepted the approval buttons";
+    case "telegram_decision_recorded": return "Decision recorded through linked Telegram identity";
+    case "slack_filter_evaluated": return "Slack message rules checked";
+    case "slack_queued": return "Slack message queued";
+    case "sms_queued": return "SMS queued for an authorized recipient";
+    case "sms_accepted": return "Twilio accepted the SMS request";
+    case "sms_delivery_failed": return "SMS delivery stopped or needs review";
+    case "sms_status_updated": return "SMS provider delivery status updated";
+    case "slack_accepted": return "Slack accepted by provider";
+    case "slack_delivery_failed": return "Slack delivery needs attention";
+    case "telegram_trigger_activated": return "Telegram request activated";
+    case "telegram_filter_evaluated": return "Telegram filter checked";
+    case "telegram_queued": return "Telegram message queued";
+    case "telegram_sent": return "Telegram accepted by provider";
+    case "telegram_delivery_failed": return "Telegram delivery needs attention";
     case "instance_started":
       return "Request submitted";
     case "condition_evaluated":

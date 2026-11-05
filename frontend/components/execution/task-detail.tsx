@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { DecisionRecord } from "@/components/analytics/decision-record";
 import { ReassignAssignment } from "@/components/execution/reassign-assignment";
 import { DynamicForm, ReadOnlyFields } from "@/components/execution/dynamic-form";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { useRouter } from "next/navigation";
 import { DynamicForm } from "@/components/execution/dynamic-form";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";

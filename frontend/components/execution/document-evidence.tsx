@@ -1,0 +1,8 @@
+"use client";
+import {useState} from "react";
+import {Button} from "@/components/ui/button";
+export function DocumentEvidence({organizationId,documents}:{organizationId?:string;documents?:{id:string;name:string;status:string;expires_at:string}[]}){
+  const [error,setError]=useState("");const [busy,setBusy]=useState(false);
+  if(!documents?.length)return null;
+  return <section className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"><h2 className="text-sm font-medium">Original private evidence</h2><p className="text-xs text-muted-foreground">Access requires current request visibility and an unexpired retention period. A clean scan does not prove authenticity. Retention may expire before the request history.</p>{error&&<p role="alert" className="text-sm text-destructive">{error}</p>}{documents.map(d=><div key={d.id} className="flex flex-wrap items-center gap-2 text-sm"><span className="break-all">{d.name} · {d.status}</span><Button size="sm" variant="outline" disabled={busy||d.status!=="clean"} onClick={()=>{if(!organizationId)return;setBusy(true);setError("");void fetch(`${process.env.NEXT_PUBLIC_API_URL??"http://localhost:8000"}/api/v1/organizations/${organizationId}/integrations/email/documents/${d.id}/download`,{credentials:"include",headers:{Accept:"application/octet-stream"},signal:AbortSignal.timeout(30000)}).then(async response=>{if(!response.ok)throw new Error();const url=URL.createObjectURL(await response.blob());const a=document.createElement("a");a.href=url;a.download=d.name;a.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}).catch(()=>setError("Evidence is unavailable, expired, or no longer authorized.")).finally(()=>setBusy(false));}}>Download evidence</Button></div>)}</section>;
+}

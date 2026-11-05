@@ -1,6 +1,11 @@
 export type WorkflowStatus = "draft" | "published" | "archived";
 
+export type EmailRule = { field: "sender" | "recipient" | "subject" | "text" | "has_attachments"; operator: "equals" | "contains" | "starts_with"; value: string | boolean };
+export type DocumentField = { id: string; label: string; type: "text" | "identifier" | "email" | "date" | "number" | "select" | "supporting_document"; required: boolean; options?: string[]; after_or_equal_to?: string; required_when?: {field_id: string; equals: string | boolean} };
+
 export type NodeType =
+  | import("@/lib/ai").AiNodeType
+  | "email_trigger" | "email_filter" | "email_send" | "email_reply" | "attachment_inspector" | "document_validation"
   | "start"
   | "approval"
   | "condition"
@@ -9,7 +14,13 @@ export type NodeType =
   | "notification"
   | "assignment"
   | "delay"
-  | "integration_action";
+  | "integration_action"
+  | "telegram_trigger"
+  | "telegram_filter"
+  | "telegram_send_message"
+  | "telegram_notification"
+  | "sms_notification" | "sms_send_message"
+  | "slack_trigger" | "slack_filter" | "slack_send_message" | "slack_notification";
 
 export type NotificationChannel = "in_app" | "email";
 
@@ -39,14 +50,30 @@ export type ConditionRule = {
 };
 
 export type WorkflowNodeData = {
+  source_kind?: "request"|"email"|"document"|"slack";
+  document_field?: string|null;
+  configuration?: import("@/lib/ai").AiConfiguration;
+  require_attachments?: boolean;
+  require_document?: boolean;
+  sender_id?: string;
+  recipient_id?: string;
+  template_id?: string;
+  document_fields?: DocumentField[];
+  field_map?: Record<string, string>;
   connection_id?: string;
+  input_mapping?: Record<string, string>;
+  filter_field?: "command" | "text" | "chat_type" | "event_type";
+  telegram_approval?: {connection_id:string;destination:string};
+  match_mode?: "equals" | "contains" | "starts_with";
+  match_value?: string;
+  text?: string;
   operation?: string;
   destination?: string;
   label: string;
   description: string;
   assignee_roles?: AssigneeRole[];
   match?: "all" | "any";
-  rules?: ConditionRule[];
+  rules?: ConditionRule[] | EmailRule[];
   max_returns?: number | null;
   return_to_node_id?: string | null;
   result?: EndResult | null;
@@ -162,6 +189,16 @@ export type WorkflowList = {
 };
 
 export const SOURCE_HANDLES: Record<NodeType, string[]> = {
+  ai_email_analysis: ["complete","missing","uncertain","unavailable"],
+  ai_document_analysis: ["complete","missing","uncertain","unavailable"],
+  ai_slack_analysis: ["complete","missing","uncertain","unavailable"],
+  ai_summarization: ["complete","missing","uncertain","unavailable"],
+  ai_classification: ["complete","missing","uncertain","unavailable"],
+  ai_field_extraction: ["complete","missing","uncertain","unavailable"],
+  ai_reply_draft: ["complete","missing","uncertain","unavailable"],
+
+  email_trigger: ["out"], email_filter: ["matched", "unmatched"], email_send: ["out"], email_reply: ["out"],
+  attachment_inspector: ["inspected", "missing", "blocked"], document_validation: ["complete", "missing", "invalid", "unknown"],
   start: ["out"],
   approval: ["approved", "rejected"],
   condition: ["true", "false"],
@@ -171,6 +208,12 @@ export const SOURCE_HANDLES: Record<NodeType, string[]> = {
   assignment: ["out"],
   delay: ["out"],
   integration_action: ["out"],
+  sms_notification: ["out"], sms_send_message: ["out"],
+  slack_trigger: ["out"], slack_filter: ["matched", "unmatched"], slack_send_message: ["out"], slack_notification: ["out"],
+  telegram_trigger: ["out"],
+  telegram_filter: ["matched", "unmatched"],
+  telegram_send_message: ["out"],
+  telegram_notification: ["out"],
 };
 
 export const OPERATORS: Record<FieldType, ConditionOperator[]> = {

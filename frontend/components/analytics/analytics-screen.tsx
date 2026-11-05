@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { BarChart3 } from "lucide-react";
-import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import dynamic from "next/dynamic";
+import { ChartBoundary } from "./chart-boundary";
 import { WorkflowFilter } from "@/components/analytics/workflow-filter";
 import { AnalyticsNav, ScopeBanner } from "@/components/analytics/analytics-frame";
 import { EmptyState } from "@/components/patterns/empty-state";
@@ -20,13 +21,16 @@ import {
   formatRate,
   formatSeconds,
   getAnalytics,
-  statusColor,
   utcDay,
   type AnalyticsQuery,
   type AnalyticsReport,
 } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth";
 import { instanceStatusLabel, type InstanceStatus } from "@/lib/execution";
+
+const chartLoading = () => <p role="status" className="text-sm text-muted-foreground">Loading chart</p>;
+const VolumeChart = dynamic(() => import("./analytics-charts").then(module => module.VolumeChart), { loading: chartLoading });
+const StatusChart = dynamic(() => import("./analytics-charts").then(module => module.StatusChart), { loading: chartLoading });
 
 const presets = [
   { id: "7", label: "7 days", from: -6 },
@@ -37,6 +41,7 @@ const presets = [
 const statuses: Array<{ value: "all" | InstanceStatus; label: string }> = [
   { value: "all", label: "All statuses" },
   { value: "running", label: "In progress" },
+  { value: "awaiting_ai", label: "AI analysis" },
   { value: "awaiting_approval", label: "Awaiting approval" },
   { value: "awaiting_revision", label: "Needs revision" },
   { value: "awaiting_assignment", label: "Awaiting assignment" },
@@ -220,15 +225,7 @@ export function AnalyticsScreen() {
               </CardHeader>
               <CardContent className="h-64 min-h-48">
                 <div data-testid="volume-chart" className="h-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={report.volume}>
-                      <CartesianGrid stroke="var(--border)" />
-                      <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
-                      <YAxis allowDecimals={false} stroke="var(--muted-foreground)" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="count" stroke="var(--primary)" strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <ChartBoundary><VolumeChart data={report.volume} /></ChartBoundary>
                 </div>
               </CardContent>
             </Card>
@@ -239,16 +236,7 @@ export function AnalyticsScreen() {
               </CardHeader>
               <CardContent className="h-64 min-h-48">
                 <div data-testid="status-chart" className="h-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={statusSlices} dataKey="count" nameKey="status" innerRadius={48} outerRadius={72}>
-                        {statusSlices.map((item) => (
-                          <Cell key={item.status} fill={statusColor(item.status)} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <ChartBoundary><StatusChart data={statusSlices} /></ChartBoundary>
                 </div>
                 <ul className="flex flex-wrap gap-3">
                   {statusSlices.map((item) => (

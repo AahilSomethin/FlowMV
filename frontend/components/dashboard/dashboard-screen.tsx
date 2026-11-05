@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { ArrowRight, BarChart3, GitBranch, Inbox, ListTodo, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Button } from "@/components/ui/button";

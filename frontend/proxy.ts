@@ -32,6 +32,7 @@ export const config = {
     "/workflows/:path*",
     "/analytics/:path*",
     "/settings/:path*",
+    "/connections/:path*",
     "/dashboard",
     "/onboarding",
     "/team",
@@ -40,5 +41,6 @@ export const config = {
     "/workflows",
     "/analytics",
     "/settings",
+    "/connections",
   ],
 };

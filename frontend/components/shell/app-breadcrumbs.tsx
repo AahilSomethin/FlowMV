@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/shell/intent-link";
 import { usePathname } from "next/navigation";
 import {
   Breadcrumb,
@@ -16,7 +16,7 @@ export function AppBreadcrumbs() {
   const pathname = usePathname();
   const current = workspaceNavItem(pathname);
   const nested = current && pathname !== current.href;
-  const detailLabel = pathname === "/requests/new" ? "New request" : pathname.endsWith("/edit") ? "Workflow studio" : pathname === "/analytics/audit" ? "Audit" : current?.href === "/tasks" ? "Task details" : current?.href === "/requests" ? "Request details" : "Workflow details";
+  const detailLabel = pathname === "/connections/ai" ? "AI connections" : pathname === "/workflows/templates" ? "Templates" : pathname === "/connections/sms" ? "SMS" : pathname === "/connections/slack" ? "Slack" : pathname === "/connections/email" ? "Email & documents" : pathname === "/connections/telegram" ? "Telegram" : pathname === "/requests/new" ? "New request" : pathname.endsWith("/edit") ? "Workflow studio" : pathname === "/analytics/audit" ? "Audit" : current?.href === "/tasks" ? "Task details" : current?.href === "/requests" ? "Request details" : "Workflow details";
 
   if (!current || current.href === "/dashboard") {
     return (
