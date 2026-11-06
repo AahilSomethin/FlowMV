@@ -173,7 +173,7 @@ function TaskSummary({ task, name }: { task: WorkflowTask; name: string }) {
   const Icon = task.task_type === "approval" ? ShieldCheck : task.task_type === "revision" ? RotateCcw : UserRoundCheck;
   return (
     <>
-      <span className="flex items-center gap-2 font-medium"><Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />{name}</span>
+      <span className="flex min-w-0 items-start gap-2 font-medium"><Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" /><span className="min-w-0 text-pretty">{name}</span></span>
       <span className="text-sm text-muted-foreground">
         {taskTypeLabel(task.task_type)} · {task.node_label ?? "Current step"} ·{" "}
         {formatWhen(task.status === "completed" ? task.completed_at : task.assigned_at)}

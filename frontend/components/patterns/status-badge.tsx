@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "cn";
 import { Badge } from "@/components/ui/badge";
 import type { OrganizationRole } from "@/lib/api";
 import { roleLabel } from "@/lib/organizations";
@@ -18,12 +19,14 @@ const tones = {
 export function StatusBadge({
   children,
   tone = "neutral",
+  className,
 }: {
   children: ReactNode;
   tone?: keyof typeof tones;
+  className?: string;
 }) {
   return (
-    <Badge variant="outline" className={tones[tone]}>
+    <Badge variant="outline" className={cn(tones[tone], "shrink-0", className)}>
       <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
       {children}
     </Badge>

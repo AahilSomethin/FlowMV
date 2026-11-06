@@ -154,25 +154,25 @@ export function RequestListScreen() {
                   <TableHead>Workflow</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Current step</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Submitted by</TableHead>
+                  <TableHead className="hidden xl:table-cell">Version</TableHead>
+                  <TableHead className="hidden xl:table-cell">Submitted by</TableHead>
                   <TableHead>Started</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((item) => (
                   <TableRow key={item.uuid}>
-                    <TableCell>
-                      <Link href={`/requests/${item.uuid}`} className="font-medium underline-offset-4 hover:underline">
+                    <TableCell className="whitespace-normal">
+                      <Link href={`/requests/${item.uuid}`} className="font-medium text-pretty underline-offset-4 hover:underline">
                         {item.workflow?.name ?? "Request"}
                       </Link>
                     </TableCell>
                     <TableCell>
                       <InstanceStatusBadge status={item.status} />
                     </TableCell>
-                    <TableCell>{item.current_node_label ?? "Not recorded"}</TableCell>
-                    <TableCell>{item.workflow_version ? `Version ${item.workflow_version.version_number}` : "Not recorded"}</TableCell>
-                    <TableCell>{item.submitted_by?.name ?? "Unknown"}</TableCell>
+                    <TableCell className="whitespace-normal">{item.current_node_label ?? "Not recorded"}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{item.workflow_version ? `Version ${item.workflow_version.version_number}` : "Not recorded"}</TableCell>
+                    <TableCell className="hidden whitespace-normal xl:table-cell">{item.submitted_by?.name ?? "Unknown"}</TableCell>
                     <TableCell>{formatWhen(item.started_at)}</TableCell>
                   </TableRow>
                 ))}

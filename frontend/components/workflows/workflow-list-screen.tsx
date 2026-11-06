@@ -133,25 +133,25 @@ export function WorkflowListScreen() {
       ) : (
         <>
           <div className="hidden md:block">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[58%]">Name</TableHead>
+                  <TableHead className="w-[28%]">Status</TableHead>
                   <TableHead>Version</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((workflow) => (
                   <TableRow key={workflow.uuid}>
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <Link href={`/workflows/${workflow.uuid}`} className="font-medium underline-offset-4 hover:underline">
                         {workflow.name}
                       </Link>
-                      {workflow.description ? <p className="mt-1 text-sm text-muted-foreground">{workflow.description}</p> : null}
+                      {workflow.description ? <p className="mt-1 line-clamp-2 text-sm text-pretty text-muted-foreground">{workflow.description}</p> : null}
                     </TableCell>
-                    <TableCell>
-                      <StatusBadge>{statusLabel(workflow)}</StatusBadge>
+                    <TableCell className="whitespace-normal">
+                      <StatusBadge className="h-auto max-w-full whitespace-normal">{statusLabel(workflow)}</StatusBadge>
                     </TableCell>
                     <TableCell>{workflow.current_version_number ?? "Not published"}</TableCell>
                   </TableRow>

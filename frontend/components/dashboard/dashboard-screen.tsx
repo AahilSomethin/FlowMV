@@ -99,7 +99,7 @@ function WorkspacePulse({ organizationId }: { organizationId: string }) {
 
   return (
     <section className="flex flex-col gap-3" aria-label="Last 30 days">
-      <div className="flex flex-wrap items-end justify-between gap-2">
+      <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-sm font-medium">Last 30 days</h2>
           <p className="text-sm text-muted-foreground">{pulse.scope}</p>
@@ -109,7 +109,7 @@ function WorkspacePulse({ organizationId }: { organizationId: string }) {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Requests started" value={String(pulse.total)} detail="UTC window, current scope" />
         <StatCard label="Completion rate" value={pulse.completion} detail="Finished requests only" />
-        <StatCard label="Median approval wait" value={pulse.wait} detail="Hidden when the sample is too small" />
+        <StatCard label="Median approval wait" value={pulse.wait} detail={pulse.wait === "Not enough completed requests" ? "Shown after enough finished approvals" : "Time until an approval decision"} />
         <StatCard label="Approvals open now" value={String(pulse.open)} detail="Not limited to the 30-day window" />
       </div>
     </section>
@@ -149,12 +149,12 @@ function OpenTasks({ organizationId }: { organizationId: string }) {
         <ul className="flex flex-col divide-y">
           {tasks.map((task) => (
             <li key={task.uuid}>
-              <Link href={`/tasks/${task.uuid}`} className="flex items-start justify-between gap-3 py-3 hover:bg-surface-subtle">
+              <Link href={`/tasks/${task.uuid}`} className="flex w-full min-w-0 items-start justify-between gap-3 py-3 hover:bg-surface-subtle">
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{task.instance?.workflow?.name ?? task.node_label ?? "Task"}</span>
                   <span className="block text-sm text-muted-foreground">{taskTypeLabel(task.task_type)} · {formatWhen(task.assigned_at)}</span>
                 </span>
-                <StatusBadge tone="attention">{taskTypeLabel(task.task_type)}</StatusBadge>
+                <StatusBadge className="shrink-0" tone="attention">{taskTypeLabel(task.task_type)}</StatusBadge>
               </Link>
             </li>
           ))}
@@ -194,8 +194,8 @@ function RecentRequests({ organizationId }: { organizationId: string }) {
       ) : (
         <ul className="flex flex-col divide-y">
           {items.map((item) => (
-            <li key={item.uuid} className="flex items-center justify-between gap-3 py-3">
-              <Link href={`/requests/${item.uuid}`} className="min-w-0 truncate text-sm font-medium underline-offset-4 hover:underline">{item.workflow?.name ?? "Request"}</Link>
+            <li key={item.uuid} className="flex min-w-0 flex-col items-start gap-1.5 py-3">
+              <Link href={`/requests/${item.uuid}`} className="text-sm font-medium text-pretty underline-offset-4 hover:underline">{item.workflow?.name ?? "Request"}</Link>
               <StatusBadge tone={instanceStatusTone(item.status)}>{instanceStatusLabel(item.status)}</StatusBadge>
             </li>
           ))}
@@ -216,13 +216,13 @@ function QuickActions({ employee }: { employee: boolean }) {
   return (
     <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
       <h2 className="text-sm font-medium">Jump back in</h2>
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {actions.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href} className="flex items-center gap-2 rounded-lg bg-surface-subtle px-3 py-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">
-              <Icon className="size-4 text-primary" aria-hidden="true" />
-              {item.label}
+            <Link key={item.href} href={item.href} className="flex min-w-0 items-center gap-2 rounded-lg bg-surface-subtle px-3 py-3 text-sm font-medium hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring">
+              <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="min-w-0">{item.label}</span>
             </Link>
           );
         })}

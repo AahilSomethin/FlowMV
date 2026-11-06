@@ -223,7 +223,7 @@ export function AnalyticsScreen() {
             <StatCard
               label="Revision rate"
               value={formatRate(report.revisions.rate, report.revisions.sufficient)}
-              detail={`${report.revisions.instances_revised} requests revised, ${report.revisions.submissions} submissions${report.revisions.mean_among_revised !== null ? `, ${report.revisions.mean_among_revised} on average among those revised` : ""}`}
+              detail={`${report.revisions.instances_revised} revised · ${report.revisions.submissions} submissions${report.revisions.mean_among_revised !== null ? ` · ${report.revisions.mean_among_revised} average among those revised` : ""}`}
             />
           </div>
           <div className="grid gap-3 lg:grid-cols-5">
@@ -261,20 +261,23 @@ export function AnalyticsScreen() {
           </SectionCard>
           <section className="flex flex-col gap-3">
             <div className="flex flex-wrap items-end justify-between gap-2">
-              <h2 className="text-base font-medium">Workflow performance</h2>
+              <div>
+                <h2 className="text-base font-medium">Workflow performance</h2>
+                <p className="text-sm text-muted-foreground">A dash means fewer than {report.minimum_sample} finished requests, so the rate stays hidden.</p>
+              </div>
               {report.truncated.workflows ? <p className="text-sm text-muted-foreground">Showing the leading workflows. Export CSV for the full set.</p> : null}
             </div>
             {report.workflows.length === 0 ? (
               <EmptyState title="No workflow activity" description="No workflow in this scope has requests in the range." />
             ) : (
               <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-                <div className="hidden grid-cols-[minmax(0,1.4fr)_repeat(7,minmax(0,1fr))] gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground md:grid">
+                <div className="hidden grid-cols-[minmax(11rem,2.4fr)_repeat(7,minmax(2.5rem,0.7fr))] gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground lg:grid">
                   <span>Workflow</span><span>Started</span><span>Completed</span><span>Rejected</span><span>Open</span><span>Failed</span><span>Completion</span><span>Median</span>
                 </div>
                 <ul>
                   {report.workflows.map((item) => (
-                    <li key={item.uuid} className="grid gap-2 border-b px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,1.4fr)_repeat(7,minmax(0,1fr))] md:items-center md:gap-3">
-                      <Link href={`/requests?workflow=${item.uuid}`} className="font-medium underline-offset-4 hover:underline">{item.name}</Link>
+                    <li key={item.uuid} className="grid gap-2 border-b px-4 py-3 last:border-b-0 lg:grid-cols-[minmax(11rem,2.4fr)_repeat(7,minmax(2.5rem,0.7fr))] lg:items-center lg:gap-3">
+                      <Link href={`/requests?workflow=${item.uuid}`} className="min-w-0 font-medium text-pretty underline-offset-4 hover:underline">{item.name}</Link>
                       <MetricCell label="Started" value={item.started} />
                       <MetricCell label="Completed" value={item.completed} />
                       <MetricCell label="Rejected" value={item.rejected} />
@@ -316,10 +319,19 @@ export function AnalyticsScreen() {
 }
 
 function MetricCell({ label, value }: { label: string; value: string | number }) {
+  const hidden = value === "Not enough completed requests";
+
   return (
-    <span className="flex items-baseline justify-between gap-3 text-sm tabular-nums md:block">
-      <span className="text-xs text-muted-foreground md:hidden">{label}</span>
-      <span>{value}</span>
+    <span className="flex items-baseline justify-between gap-3 text-sm tabular-nums lg:block">
+      <span className="text-xs text-muted-foreground lg:hidden">{label}</span>
+      {hidden ? (
+        <span title="Not enough completed requests">
+          <span className="sr-only">Not enough completed requests</span>
+          <span aria-hidden="true">—</span>
+        </span>
+      ) : (
+        <span>{value}</span>
+      )}
     </span>
   );
 }
