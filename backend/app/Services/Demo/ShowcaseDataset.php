@@ -129,7 +129,7 @@ class ShowcaseDataset
                 $user = User::factory()->create(['name' => ucfirst($role).' '.str_pad((string) $i, 2, '0', STR_PAD_LEFT), 'email' => "mindco.$role$i@example.com", 'email_verified_at' => now(), 'password' => $password]);
                 $this->users[$role][] = $user;
                 if ($role === 'admin' && $i === 1) {
-                    $membership = app(CreateOrganization::class)($user, 'MINDCo Demonstration', 'mindco-showcase');
+                    $membership = app(CreateOrganization::class)($user, ShowcaseLabels::ORGANIZATION_NAME, ShowcaseLabels::ORGANIZATION_SLUG);
                     $this->organization = $membership->organization;
                 } else {
                     OrganizationMembership::factory()->create(['user_id' => $user->id, 'organization_id' => $this->organization->id, 'role' => OrganizationRole::from($role)]);
@@ -171,35 +171,35 @@ class ShowcaseDataset
             app(ConnectionManager::class)->audit($org, null, $admin->id, $provider.'.provider.policy');
         }
         $telegram = app(TelegramConnections::class);
-        $id = $this->connections['telegram'] = $telegram->create($admin->id, $org, ['name' => 'MINDCo simulated Telegram', 'ownership' => 'organization'], ['bot_token' => '900010:'.str_repeat('D', 40).'_FLOWMV_QA_ONLY']);
+        $id = $this->connections['telegram'] = $telegram->create($admin->id, $org, ['name' => ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated Telegram'], 'ownership' => 'organization'], ['bot_token' => '900010:'.str_repeat('D', 40).'_FLOWMV_QA_ONLY']);
         foreach (['approve', 'configure-webhook', 'approve-destination'] as $action) {
             $telegram->action($admin->id, $org, $id, $action, ['chat_id' => '888', 'label' => 'Synthetic Manager private chat']);
         }
         $command = app(TelegramIdentity::class)->begin($this->users['manager'][0]->id, $org, $id);
         app(TelegramQaTransport::class)->emit($id, '888', '888', $command);
         app(TelegramIdentity::class)->confirm($this->users['manager'][0]->id, $org, $id);
-        $this->connections['slack'] = app(SlackQaTransport::class)->connect($this->request($admin), $org, ['name' => 'MINDCo simulated Slack', 'ownership' => 'organization']);
+        $this->connections['slack'] = app(SlackQaTransport::class)->connect($this->request($admin), $org, ['name' => ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated Slack'], 'ownership' => 'organization']);
         $this->slackAction('approve');
         $this->slackAction('approve-channel', ['destination' => 'C90000001']);
         $member = $this->users['employee'][0];
         $command = app(SlackController::class)->identity($this->request($member), $this->organization->uuid, $this->connections['slack'], 'start')->getData(true)['data']['command'];
         app(SlackQaTransport::class)->event($this->connections['slack'], 'U90000002', '/flowmv_link', substr($command, strlen('/flowmv_link ')), 'showcase-link');
         app(SlackController::class)->identity($this->request($member), $this->organization->uuid, $this->connections['slack'], 'confirm');
-        $id = $this->connections['email'] = app(EmailQaTransport::class)->connect($this->request($admin), $org, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => 'MINDCo simulated applications mailbox', 'ownership' => 'organization'], 'mindco.applications@example.com');
+        $id = $this->connections['email'] = app(EmailQaTransport::class)->connect($this->request($admin), $org, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated applications mailbox'], 'ownership' => 'organization'], 'mindco.applications@example.com');
         app(EmailConnections::class)->action($admin->id, $org, $id, 'approve', []);
         app(EmailConnections::class)->action($admin->id, $org, $id, 'approve-destination', ['address' => $member->email]);
         app(EmailSync::class)->process($id);
-        $this->connections['document_template'] = app(DocumentTemplates::class)->create($org, $admin->id, 'MINDCo application', [
+        $this->connections['document_template'] = app(DocumentTemplates::class)->create($org, $admin->id, ShowcaseLabels::DOCUMENT_TEMPLATE_NAME, [
             ['id' => 'employee_name', 'label' => 'Employee name', 'type' => 'text', 'required' => true], ['id' => 'employee_id', 'label' => 'Employee ID', 'type' => 'identifier', 'required' => true],
             ['id' => 'start_date', 'label' => 'Start date', 'type' => 'date', 'required' => true], ['id' => 'end_date', 'label' => 'End date', 'type' => 'date', 'required' => true, 'after_or_equal_to' => 'start_date'],
         ]);
         $sms = app(SmsConnections::class);
         $sms->policy($admin->id, $org, ['approved' => true, 'enabled' => true, 'allowed_countries' => ['US'], 'per_minute' => 10, 'daily_limit' => 50, 'monthly_limit' => 100, 'recipient_daily_limit' => 10]);
-        $id = $this->connections['sms'] = $sms->create($admin->id, $org, 'MINDCo simulated SMS', ['account_sid' => SmsQaTransport::ACCOUNT, 'auth_token' => SmsQaTransport::TOKEN]);
+        $id = $this->connections['sms'] = $sms->create($admin->id, $org, ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated SMS'], ['account_sid' => SmsQaTransport::ACCOUNT, 'auth_token' => SmsQaTransport::TOKEN]);
         $sms->action($admin->id, $org, $id, 'approve', []);
         $this->connections['sender'] = $sms->action($admin->id, $org, $id, 'approve-sender', ['label' => 'Synthetic sender'], [], '+15005550006');
         $this->connections['recipient'] = $sms->action($admin->id, $org, $id, 'approve-recipient', ['label' => 'Synthetic recipient', 'consent' => true], [], '+15005550009');
-        $this->connections['sms_template'] = $sms->template($admin->id, $org, 'Minimal outcome', 'FlowMV request {{request.uuid}}: {{approval.decision}}');
+        $this->connections['sms_template'] = $sms->template($admin->id, $org, 'Minimal outcome', 'Orqestra request {{request.uuid}}: {{approval.decision}}');
     }
 
     private function publish(string $recipe): Workflow

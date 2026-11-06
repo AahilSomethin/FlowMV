@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, LogOut, Workflow } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { TextField } from "@/components/auth/text-field";
@@ -86,7 +87,7 @@ export function CreateOrganizationForm() {
         <div className="w-full max-w-md">
           <ErrorState
             title="Unable to load your account"
-            description="FlowMV could not reach your session. This does not sign you out."
+            description="Orqestra could not reach your session. This does not sign you out."
             action={
               <Button type="button" className="h-10" onClick={() => void refresh().catch(() => undefined)}>
                 Try again
@@ -114,9 +115,9 @@ export function CreateOrganizationForm() {
       <header className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Workflow className="size-4" aria-hidden="true" />
+            <BrandMark className="size-5" />
           </span>
-          <span className="truncate text-sm font-medium">FlowMV</span>
+          <span className="truncate text-sm font-medium">Orqestra</span>
         </div>
         <Button type="button" variant="outline" className="h-10" onClick={onLogout} disabled={pending}>
           {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <LogOut aria-hidden="true" />}
@@ -147,7 +148,7 @@ export function CreateOrganizationForm() {
                   spellCheck={false}
                   placeholder="optional"
                 />
-                <FieldDescription>Leave the slug blank and FlowMV will create one from the name.</FieldDescription>
+                <FieldDescription>Leave the slug blank and Orqestra will create one from the name.</FieldDescription>
               </div>
             </FieldGroup>
             <Button type="submit" size="lg" className="h-10 w-full" disabled={form.formState.isSubmitting}>

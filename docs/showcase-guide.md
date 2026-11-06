@@ -36,7 +36,7 @@ Typical emails (passwords only in the ignored manifest):
 
 Switch roles with ordinary **Log out → Sign in**. There is no authorization-bypass role switcher.
 
-Confirm the banner: *Fictional demo workspace… provider transports and document scanning are simulated.*
+Confirm the compact **Demo** control beside the workspace switcher. It should say that requests and decisions are real, and that email, Slack, Telegram, SMS, document scanning, and AI provider transport are simulated. There is no full-width banner.
 
 ## What is real vs simulated
 

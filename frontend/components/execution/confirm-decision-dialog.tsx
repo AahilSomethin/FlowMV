@@ -39,7 +39,7 @@ export function ConfirmDecisionDialog({
             {verb} “{requestName}”?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            This will {approving ? "approve" : "reject"} the request “{requestName}” at the {stepLabel} step. FlowMV records
+            This will {approving ? "approve" : "reject"} the request “{requestName}” at the {stepLabel} step. Orqestra records
             the decision and advances the workflow.
           </AlertDialogDescription>
         </AlertDialogHeader>

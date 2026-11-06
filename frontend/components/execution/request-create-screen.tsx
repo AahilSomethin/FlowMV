@@ -151,7 +151,7 @@ export function RequestCreateScreen() {
       }
 
       if (caught instanceof ApiError && caught.status === 0) {
-        setBanner("Could not reach FlowMV. Try again safely; your request will not be duplicated.");
+        setBanner("Could not reach Orqestra. Try again safely; your request will not be duplicated.");
         return;
       }
 

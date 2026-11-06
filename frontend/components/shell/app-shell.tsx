@@ -43,7 +43,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
   const { pending } = useWorkspaceTransition();
   const pathname = usePathname();
   const canvas = /^\/workflows\/[^/]+\/edit$/.test(pathname);
-  const wide = /^\/(analytics|requests|team|connections)(\/|$)/.test(pathname);
+  const wide = /^\/(analytics|requests|team|connections|tasks|workflows|dashboard|settings)(\/|$)/.test(pathname) && pathname !== "/requests/new";
   const organizationKey = user?.current_organization?.uuid ?? "none";
   const accessKey = `${user?.id}:${organizationKey}:${user?.current_organization?.role}`;
 
@@ -67,12 +67,12 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
           <Separator orientation="vertical" className="hidden h-5 sm:block" />
           <AppBreadcrumbs />
           <div className="ml-auto flex min-w-0 items-center gap-2">
+            {organizationKey !== "none" ? <DemoNotice key={organizationKey} organizationId={organizationKey} /> : null}
             <WorkspaceSwitcher />
             {organizationKey !== "none" ? <NotificationsMenu key={organizationKey} organizationId={organizationKey} /> : null}
             <AccountMenu />
           </div>
         </header>
-        {organizationKey !== "none" ? <DemoNotice key={organizationKey} organizationId={organizationKey}/> : null}
         <div id="content" tabIndex={-1} className={canvas ? "flex min-h-0 flex-1 flex-col overflow-hidden outline-none" : "flex min-h-0 flex-1 flex-col outline-none"}>
           {canvas ? (
             pending ? (
@@ -85,7 +85,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
               </div>
             )
           ) : (
-            <div className={`mx-auto flex w-full flex-1 flex-col gap-8 p-4 md:p-8 lg:py-10 ${wide ? "max-w-7xl" : "max-w-6xl"}`}>
+            <div className={`mx-auto flex w-full flex-1 flex-col gap-6 p-4 md:p-6 lg:px-8 lg:py-6 ${wide ? "max-w-7xl" : "max-w-3xl"}`}>
               {pending ? (
                 <LoadingState label="Switching workspace" />
               ) : (
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="w-full max-w-md">
             <ErrorState
               title="Unable to load your account"
-              description="FlowMV could not reach your session. This does not sign you out."
+              description="Orqestra could not reach your session. This does not sign you out."
               action={
                 <Button type="button" className="h-10" onClick={() => void refresh().catch(() => undefined)}>
                   Try again

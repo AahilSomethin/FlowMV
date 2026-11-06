@@ -72,7 +72,7 @@ class AiShowcaseDataset
         DB::transaction(function () {
             $connections = app(AiConnections::class);
             $connections->policy($this->admin->id, $this->org->id, ['enabled' => true, 'providers' => ['openai', 'gemini'], 'data_categories' => ['workplace_request', 'email_body', 'document_text', 'slack_message', 'hr_sensitive'], 'max_input_bytes' => 20000, 'max_output_tokens' => 1024, 'daily_organization_units' => 2000000, 'daily_user_units' => 1000000, 'daily_workflow_units' => 1000000, 'max_corrections' => 2, 'retention_days' => 7]);
-            $this->connection = $connections->create($this->admin->id, $this->org->id, $this->settings('MINDCo simulated OpenAI'), ['api_key' => 'FLOWMV_QA_AI_'.Str::random(40)]);
+            $this->connection = $connections->create($this->admin->id, $this->org->id, $this->settings(ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated OpenAI']), ['api_key' => 'FLOWMV_QA_AI_'.Str::random(40)]);
             $connections->action($this->admin->id, $this->org->id, $this->connection, 'approve', []);
             $connections->test($this->admin->id, $this->org->id, $this->connection);
             $email = $this->emailExample();
@@ -103,7 +103,7 @@ class AiShowcaseDataset
             $this->record('classification-routing-suggestion', $this->requestExample('Classify synthetic request', 'classify', 'leave request for manager_review', [], false, ['leave', 'procurement'], ['manager_review']));
             $this->record('uncertain-human-review', $this->requestExample('Uncertain evidence', 'summarize', 'Synthetic ambiguous request [SIMULATE_UNCERTAIN]'));
             $failure = $this->requestExample('Provider failure and budget fallback', 'summarize', 'Synthetic provider failure [SIMULATE_TIMEOUT]');
-            $budgetConnection = $connections->create($this->admin->id, $this->org->id, [...$this->settings('MINDCo exhausted synthetic budget'), 'daily_units' => 1000], ['api_key' => 'FLOWMV_QA_AI_'.Str::random(40)]);
+            $budgetConnection = $connections->create($this->admin->id, $this->org->id, [...$this->settings(ShowcaseLabels::CONNECTION_NAMES['MINDCo exhausted synthetic budget']), 'daily_units' => 1000], ['api_key' => 'FLOWMV_QA_AI_'.Str::random(40)]);
             $connections->action($this->admin->id, $this->org->id, $budgetConnection, 'approve', []);
             $connections->action($this->admin->id, $this->org->id, $budgetConnection, 'grant', ['workflow_id' => $failure['workflow_uuid'], 'operation' => 'summarize']);
             try {
@@ -148,7 +148,7 @@ class AiShowcaseDataset
         $approval = $this->node('approval', ['assignee_roles' => ['manager']], 400);
         $revision = $this->node('revision', ['max_returns' => 2, 'return_to_node_id' => $ai['id']], 600);
         if ($telegram) {
-            $bot = DB::table('connections')->where('organization_id', $this->org->id)->where('provider_id', 'telegram')->where('name', 'MINDCo simulated Telegram')->where('status', 'enabled')->value('id');
+            $bot = DB::table('connections')->where('organization_id', $this->org->id)->where('provider_id', 'telegram')->whereIn('name', ShowcaseLabels::aliases(ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated Telegram']))->where('status', 'enabled')->value('id');
             abort_unless($bot, 409);
             app(TelegramConnections::class)->action($this->admin->id, $this->org->id, $bot, 'grant', ['workflow_id' => $workflow->uuid, 'operation' => 'telegram.approval', 'chat_id' => '888']);
             $approval['data']['telegram_approval'] = ['connection_id' => $bot, 'destination' => '888'];
@@ -226,12 +226,12 @@ class AiShowcaseDataset
 
     private function emailExample(): array
     {
-        $email = app(EmailQaTransport::class)->connect($this->request($this->admin), $this->org->id, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => 'MINDCo simulated mailbox', 'ownership' => 'organization'], 'mindco.ai.applications@example.com');
+        $email = app(EmailQaTransport::class)->connect($this->request($this->admin), $this->org->id, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated mailbox'], 'ownership' => 'organization'], 'mindco.ai.applications@example.com');
         $connections = app(EmailConnections::class);
         $connections->action($this->admin->id, $this->org->id, $email, 'approve', []);
         $connections->action($this->admin->id, $this->org->id, $email, 'approve-destination', ['address' => $this->employee->email]);
         app(EmailSync::class)->process($email);
-        $template = DB::table('document_templates')->where('organization_id', $this->org->id)->where('name', 'MINDCo application')->firstOrFail();
+        $template = DB::table('document_templates')->where('organization_id', $this->org->id)->whereIn('name', [ShowcaseLabels::DOCUMENT_TEMPLATE_NAME, ShowcaseLabels::LEGACY_DOCUMENT_TEMPLATE_NAME])->firstOrFail();
         $templates = app(WorkflowTemplates::class);
         $definition = $templates->definition('email-application', $templates->bind($this->admin, $this->org, 'email-application', ['connection_id' => $email, 'document_template_id' => $template->id, 'email_sender' => $this->employee->email]));
         $workflow = app(CreateWorkflow::class)($this->admin, $this->org, 'AI demo: Email and private document analysis', 'Simulated email and scanner; real DOCX extraction.');
@@ -272,7 +272,7 @@ class AiShowcaseDataset
     private function slackExample(): array
     {
         $qa = app(SlackQaTransport::class);
-        $connection = DB::table('connections')->where('organization_id', $this->org->id)->where('provider_id', 'slack')->where('name', 'MINDCo simulated Slack')->where('status', 'enabled')->value('id');
+        $connection = DB::table('connections')->where('organization_id', $this->org->id)->where('provider_id', 'slack')->whereIn('name', ShowcaseLabels::aliases(ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated Slack']))->where('status', 'enabled')->value('id');
         abort_unless(is_string($connection), 409);
         $act = function (string $action, array $data = []) use ($connection) {
             $r = $this->request($this->admin);
@@ -321,18 +321,18 @@ class AiShowcaseDataset
         if (! $row && ! $verifyOnly) {
             $this->admin = User::where('email', 'mindco.admin1@example.com')->firstOrFail();
             $this->employee = User::where('email', 'mindco.employee1@example.com')->firstOrFail();
-            $this->connection = DB::table('connections')->where('organization_id', $this->org->id)->where('name', 'MINDCo simulated OpenAI')->where('status', 'enabled')->value('id');
+            $this->connection = DB::table('connections')->where('organization_id', $this->org->id)->whereIn('name', ShowcaseLabels::aliases(ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated OpenAI']))->where('status', 'enabled')->value('id');
             Queue::fake();
             config(['demo.seeding' => true]);
             DB::transaction(function () {
-                $mail = app(EmailQaTransport::class)->connect($this->request($this->admin), $this->org->id, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => 'MINDCo composed AI leave mailbox', 'ownership' => 'organization'], 'mindco.ai.leave@example.com');
+                $mail = app(EmailQaTransport::class)->connect($this->request($this->admin), $this->org->id, ['provider' => 'outlook', 'capabilities' => ['read', 'send'], 'name' => ShowcaseLabels::CONNECTION_NAMES['MINDCo composed AI leave mailbox'], 'ownership' => 'organization'], 'mindco.ai.leave@example.com');
                 $email = app(EmailConnections::class);
                 $email->action($this->admin->id, $this->org->id, $mail, 'approve', []);
                 foreach ([$this->employee->email, 'mindco.hr@example.com'] as $address) {
                     $email->action($this->admin->id, $this->org->id, $mail, 'approve-destination', ['address' => $address]);
                 }
                 app(EmailSync::class)->process($mail);
-                $template = DB::table('document_templates')->where('organization_id', $this->org->id)->where('name', 'MINDCo application')->firstOrFail();
+                $template = DB::table('document_templates')->where('organization_id', $this->org->id)->whereIn('name', [ShowcaseLabels::DOCUMENT_TEMPLATE_NAME, ShowcaseLabels::LEGACY_DOCUMENT_TEMPLATE_NAME])->firstOrFail();
                 $fields = json_decode($template->fields, true);
                 $templates = app(WorkflowTemplates::class);
                 $definition = $templates->definition('email-application', $templates->bind($this->admin, $this->org, 'email-application', ['connection_id' => $mail, 'document_template_id' => $template->id, 'email_sender' => $this->employee->email]));
@@ -357,7 +357,7 @@ class AiShowcaseDataset
                 $recheck = $this->node('ai_field_extraction', ['connection_id' => $this->connection, 'source_kind' => 'request', 'document_field' => null, 'field_map' => $validation['data']['field_map'], 'configuration' => $configuration], 600);
                 $summary = $this->node('ai_summarization', ['connection_id' => $this->connection, 'source_kind' => 'request', 'document_field' => null, 'field_map' => [], 'configuration' => [...$configuration, 'fields' => []]], 800);
                 $hr = $this->node('email_send', ['connection_id' => $mail, 'destination' => 'mindco.hr@example.com', 'subject' => 'Approved leave request outcome', 'text' => 'Request {{request.uuid}}: {{approval.decision}}. {{request.link}}', 'allowed_field_ids' => []], 1600);
-                $bot = DB::table('connections')->where('organization_id', $this->org->id)->where('provider_id', 'telegram')->where('name', 'MINDCo simulated Telegram')->where('status', 'enabled')->value('id');
+                $bot = DB::table('connections')->where('organization_id', $this->org->id)->where('provider_id', 'telegram')->whereIn('name', ShowcaseLabels::aliases(ShowcaseLabels::CONNECTION_NAMES['MINDCo simulated Telegram']))->where('status', 'enabled')->value('id');
                 abort_unless($bot, 409);
                 app(TelegramConnections::class)->action($this->admin->id, $this->org->id, $bot, 'grant', ['workflow_id' => $workflow->uuid, 'operation' => 'telegram.approval', 'chat_id' => '888']);
                 foreach ($graph['nodes'] as &$node) {

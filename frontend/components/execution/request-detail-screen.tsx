@@ -110,7 +110,7 @@ export function RequestDetailScreen() {
       }
 
       setConflict(caught instanceof ApiError && caught.status === 0
-        ? "Could not reach FlowMV. Retrying will reuse the same idempotency key."
+        ? "Could not reach Orqestra. Retrying will reuse the same idempotency key."
         : describeApiError(caught, "Could not retry this request.").description);
     } finally {
       setPending(false);
@@ -225,7 +225,7 @@ export function RequestDetailScreen() {
                 <span className="text-sm font-medium">{eventLabel(event.event_type)}</span>
                 <span className="text-sm text-muted-foreground">
                   {event.node_label ? `${event.node_label} · ` : ""}
-                  {event.actor?.name ?? "FlowMV"} · {formatWhen(event.created_at)}
+                  {event.actor?.name ?? "Orqestra"} · {formatWhen(event.created_at)}
                 </span>
               </li>
             ))}

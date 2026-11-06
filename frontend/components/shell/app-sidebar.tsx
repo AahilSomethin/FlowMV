@@ -10,9 +10,9 @@ import {
   ListTodo,
   Settings,
   Users,
-  Workflow,
   Plug,
 } from "lucide-react";
+import { BrandMark } from "@/components/brand/brand-mark";
 import {
   Sidebar,
   SidebarContent,
@@ -58,12 +58,15 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild tooltip="FlowMV">
-              <Link href="/dashboard" aria-label="FlowMV overview" onClick={() => setOpenMobile(false)}>
-                <span className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Workflow className="size-4" aria-hidden="true" />
+            <SidebarMenuButton size="lg" className="h-auto min-h-12 py-2" asChild tooltip="Orqestra">
+              <Link href="/dashboard" aria-label="Orqestra overview" onClick={() => setOpenMobile(false)}>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <BrandMark className="size-5" />
                 </span>
-                <span className="group-data-[collapsible=icon]:hidden"><span className="block truncate text-base font-semibold tracking-tight">FlowMV</span><span className="block text-xs text-muted-foreground">Workflows that stay clear</span></span>
+                <span className="min-w-0 group-data-[collapsible=icon]:hidden">
+                  <span className="block truncate text-base font-semibold tracking-tight">Orqestra</span>
+                  <span className="block text-xs leading-4 whitespace-normal text-muted-foreground">Operational workflows, made clear</span>
+                </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

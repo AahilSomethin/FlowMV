@@ -20,10 +20,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "FlowMV",
-    template: "%s · FlowMV",
+    default: "Orqestra",
+    template: "%s · Orqestra",
   },
-  description: "FlowMV",
+  description: "Operational workflows, made clear",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

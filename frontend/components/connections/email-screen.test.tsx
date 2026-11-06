@@ -5,7 +5,7 @@ vi.mock("@/lib/auth",()=>({useAuth:()=>({user:{email:"member@example.com",curren
 vi.mock("@/lib/api",async importOriginal=>({...await importOriginal<typeof import("@/lib/api")>(),api:vi.fn(async(path:string)=>path.endsWith("/templates")||path.endsWith("/intakes")?{items:[]}:{items:[],admin:false,enabled:true,simulated:false,personal_connections_allowed:false,approvals:{gmail:false,outlook:false}})}));
 describe("email connection privacy",()=>{
   it("explains scope, blocks unapproved personal setup and hides administrator controls",async()=>{
-    render(<EmailScreen/>);await waitFor(()=>expect(screen.getByRole("heading",{name:"What FlowMV can access"})).toBeInTheDocument());
+    render(<EmailScreen/>);await waitFor(()=>expect(screen.getByRole("heading",{name:"What Orqestra can access"})).toBeInTheDocument());
     expect(screen.getByRole("button",{name:"Continue to provider"})).toBeDisabled();
     expect(screen.queryByRole("button",{name:"Approve Gmail"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button",{name:"Create review draft"})).not.toBeInTheDocument();

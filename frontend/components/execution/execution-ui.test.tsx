@@ -194,7 +194,7 @@ describe("execution screens", () => {
   it("confirms the request and action, then reuses the idempotency key after a timeout", async () => {
     const user = userEvent.setup();
     api
-      .mockRejectedValueOnce(new ApiError("Could not reach the FlowMV API.", 0))
+      .mockRejectedValueOnce(new ApiError("Could not reach the Orqestra API.", 0))
       .mockResolvedValueOnce({ uuid: "instance-1", status: "completed" });
 
     render(<TaskDetail organizationId="org-a" task={task} onUpdated={vi.fn()} />);

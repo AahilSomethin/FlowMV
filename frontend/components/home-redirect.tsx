@@ -27,7 +27,7 @@ export function HomeRedirect() {
         <div className="w-full max-w-md">
           <ErrorState
             title="Unable to load your account"
-            description="FlowMV could not reach your session. This does not sign you out."
+            description="Orqestra could not reach your session. This does not sign you out."
             action={
               <Button type="button" className="h-10" onClick={() => void refresh().catch(() => undefined)}>
                 Try again
@@ -43,7 +43,7 @@ export function HomeRedirect() {
     <main className="flex flex-1 items-center justify-center p-4">
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-        Opening FlowMV
+        Opening Orqestra
       </p>
     </main>
   );

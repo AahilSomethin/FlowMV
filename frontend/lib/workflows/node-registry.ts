@@ -104,7 +104,7 @@ export const NODE_PRESENTATION: Record<NodeType, {
 
   ai_reply_draft: {icon:ShieldCheck,title:AI_NODES.ai_reply_draft.title,description:"Analyze approved information; advice never grants authority.",accent:"var(--node-condition)",inputLabel:"Authorized source",outcomes:{complete:"Ready for review",missing:"Missing information",uncertain:"Human review",unavailable:"Unavailable / budget"}},
 
-  email_trigger: { icon: Play, title: "Email Trigger", description: "Read an authorized mailbox. A recognized sender confirms inside FlowMV before a request starts.", accent: "var(--node-start)", inputLabel: "", outcomes: {out: "Confirmed email"} },
+  email_trigger: { icon: Play, title: "Email Trigger", description: "Read an authorized mailbox. A recognized sender confirms inside Orqestra before a request starts.", accent: "var(--node-start)", inputLabel: "", outcomes: {out: "Confirmed email"} },
 
   email_filter: { icon: GitBranch, title: "Email Filter", description: "Match sender, recipient, subject, text or attachments.", accent: "var(--node-condition)", inputLabel: "Email", outcomes: {matched: "Matches", unmatched: "Does not match"} },
 

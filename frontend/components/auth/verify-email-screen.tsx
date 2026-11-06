@@ -86,7 +86,7 @@ export function VerifyEmailScreen({
         <CardHeader>
           <CardTitle className="text-xl">Verify email</CardTitle>
           <CardDescription>
-            {verified ? "Your email address is verified." : "Confirm this address for your FlowMV account."}
+            {verified ? "Your email address is verified." : "Confirm this address for your Orqestra account."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

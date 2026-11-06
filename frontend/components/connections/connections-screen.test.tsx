@@ -5,15 +5,15 @@ import { ConnectionsScreen } from "./connections-screen";
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async importOriginal => ({...await importOriginal<typeof import("@/lib/api")>(),api}));
 vi.mock("@/lib/auth",()=>({useAuth:()=>({user:{current_organization:{uuid:"workspace-a"}}})}));
-const catalog = {items:[],admin:false,mock_enabled:true,personal_connections_allowed:false,provider_approved:true,provider:{reads:"Synthetic event identifiers only.",sends:"No messages leave FlowMV."}};
+const catalog = {items:[],admin:false,mock_enabled:true,personal_connections_allowed:false,provider_approved:true,provider:{reads:"Synthetic event identifiers only.",sends:"No messages leave Orqestra."}};
 function mockCatalog(value:typeof catalog|Record<string,unknown>){api.mockImplementation((path:string)=>Promise.resolve(path.endsWith("/connections/overview")?{providers:[]}:value));}
 describe("connection permissions and credential handling",()=>{
   beforeEach(()=>{api.mockReset();});
   it("explains data access and disables personal creation when policy forbids it",async()=>{
     mockCatalog(catalog);
     render(<ConnectionsScreen/>);
-    await screen.findByText("What FlowMV can read");
-    expect(screen.getByText("No messages leave FlowMV.")).toBeInTheDocument();
+    await screen.findByText("What Orqestra can read");
+    expect(screen.getByText("No messages leave Orqestra.")).toBeInTheDocument();
     expect(screen.getByRole("button",{name:"Connect"})).toBeDisabled();
     expect(screen.queryByText("Workspace controls")).not.toBeInTheDocument();
   });
@@ -21,7 +21,7 @@ describe("connection permissions and credential handling",()=>{
     const user = userEvent.setup();
     mockCatalog({...catalog,personal_connections_allowed:true});
     render(<ConnectionsScreen/>);
-    await screen.findByText("What FlowMV can read");
+    await screen.findByText("What Orqestra can read");
     fireEvent.change(screen.getByLabelText("Connection name"),{target:{value:"My mock"}});
     await user.click(screen.getByRole("button",{name:"Connect"}));
     fireEvent.change(screen.getByLabelText("New API key"),{target:{value:"synthetic-ui-token-only"}});

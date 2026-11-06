@@ -8,15 +8,15 @@ export function emailReviewRecipe(connection:string,template:{id:string;fields:D
   const [trigger,filter,inspect,validate,approve,send,reply,revision,complete,reject]=nodes;
   const approvedOutcome=createNode("email_reply",{x:960,y:480});
   const rejectedOutcome=createNode("email_reply",{x:960,y:720});
-  approvedOutcome.data={...approvedOutcome.data,label:"Notify applicant of approval",connection_id:connection,destination:sender,text:"Your request {{request.uuid}} was {{approval.decision}}. View the decision in FlowMV: {{request.link}}",allowed_field_ids:[]};
-  rejectedOutcome.data={...rejectedOutcome.data,label:"Notify applicant of rejection",connection_id:connection,destination:sender,text:"Your request {{request.uuid}} was {{approval.decision}}. View the decision in FlowMV: {{request.link}}",allowed_field_ids:[]};
+  approvedOutcome.data={...approvedOutcome.data,label:"Notify applicant of approval",connection_id:connection,destination:sender,text:"Your request {{request.uuid}} was {{approval.decision}}. View the decision in Orqestra: {{request.link}}",allowed_field_ids:[]};
+  rejectedOutcome.data={...rejectedOutcome.data,label:"Notify applicant of rejection",connection_id:connection,destination:sender,text:"Your request {{request.uuid}} was {{approval.decision}}. View the decision in Orqestra: {{request.link}}",allowed_field_ids:[]};
   nodes.push(approvedOutcome,rejectedOutcome);
   const fields=template.fields.filter(f=>f.type!=="supporting_document").map(f=>({id:f.id,type:(f.type==="date"||f.type==="number"||f.type==="select"?f.type:"text") as "date"|"number"|"select"|"text",label:f.label,description:"Extracted from private evidence; correct here when requested.",required:false,default_value:null,validation:{},options:(f.options??[]).map(x=>({value:x,label:x}))}));
   trigger.data={...trigger.data,connection_id:connection,input_mapping:Object.fromEntries(fields.map(f=>[f.id,`document.${f.id}`]))};
   filter.data={...filter.data,rules:[{field:"subject",operator:"contains",value:"application"}],match:"all"};
   validate.data={...validate.data,template_id:template.id,document_fields:template.fields,field_map:Object.fromEntries(fields.map(f=>[f.id,f.id]))};
   send.data={...send.data,connection_id:connection,destination:recipient,subject:"Approved request",text:"Request {{request.uuid}}: {{approval.decision}}. {{request.link}}",allowed_field_ids:[]};
-  reply.data={...reply.data,connection_id:connection,destination:sender,text:"Please correct: {{validation.missing}}. Sign in to FlowMV: {{request.link}}",allowed_field_ids:[]};
+  reply.data={...reply.data,connection_id:connection,destination:sender,text:"Please correct: {{validation.missing}}. Sign in to Orqestra: {{request.link}}",allowed_field_ids:[]};
   revision.data={...revision.data,max_returns:3,return_to_node_id:validate.id};
   reject.data={...reject.data,label:"Rejected",result:"rejected"};
   const edges:GraphDefinition["edges"]=[];

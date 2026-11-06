@@ -53,10 +53,10 @@ export function LoginForm({ nextPath = null }: { nextPath?: string | null }) {
   return (
     <AuthShell
       title="Sign in"
-      description="Use your FlowMV account to continue."
+      description="Use your Orqestra account to continue."
       footer={
         <>
-          New to FlowMV?{" "}
+          New to Orqestra?{" "}
           <Link
             href={destination === "/dashboard" ? "/register" : `/register?next=${encodeURIComponent(destination)}`}
             className="font-medium text-primary underline-offset-4 hover:underline"

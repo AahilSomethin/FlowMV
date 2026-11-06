@@ -190,7 +190,7 @@ export function AuditScreen() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Anyone</SelectItem>
-            <SelectItem value="system">FlowMV</SelectItem>
+            <SelectItem value="system">Orqestra</SelectItem>
             {actors.map((item) => (
               <SelectItem key={item.uuid} value={item.uuid}>{item.name}</SelectItem>
             ))}
@@ -242,7 +242,7 @@ export function AuditScreen() {
                       )}
                       {item.node_label ? <div className="text-muted-foreground">{item.node_label}</div> : null}
                     </TableCell>
-                    <TableCell>{item.actor_name ?? "FlowMV"}</TableCell>
+                    <TableCell>{item.actor_name ?? "Orqestra"}</TableCell>
                     <TableCell className="text-muted-foreground">{payloadText(item.payload)}</TableCell>
                   </TableRow>
                 ))}

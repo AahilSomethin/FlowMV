@@ -1,4 +1,4 @@
-# FlowMV design system
+# Orqestra design system
 
 The interface uses Tailwind CSS v4 and the existing shadcn `radix-nova` primitives. Tokens live in `frontend/app/globals.css`. Components must use semantic colors (`bg-card`, `text-muted-foreground`, `bg-primary`) rather than raw palette utilities.
 

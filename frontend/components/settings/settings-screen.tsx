@@ -62,10 +62,7 @@ export function SettingsScreen() {
             ))}
           </div>
         </DetailItem>
-      </DetailSection>
-      <DetailSection title="More account settings" description="Additional account options.">
-        <DetailItem label="Password">Password changes are not available.</DetailItem>
-        <DetailItem label="Notifications">Notification preferences are not available.</DetailItem>
+        <DetailItem label="Not available">Password changes and notification preferences are not available.</DetailItem>
       </DetailSection>
     </>
   );

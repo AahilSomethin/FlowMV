@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Workflow } from "lucide-react";
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function AuthShell({
@@ -19,12 +19,12 @@ export function AuthShell({
         <div className="flex max-w-md flex-col gap-8">
           <div className="flex items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-lg bg-brand-foreground/15">
-              <Workflow className="size-4" aria-hidden="true" />
+              <BrandMark className="size-5" />
             </span>
-            <span className="font-medium tracking-tight">FlowMV</span>
+            <span className="font-medium tracking-tight">Orqestra</span>
           </div>
           <div>
-            <p className="text-3xl font-semibold tracking-tight text-balance">Every request has a next step.</p>
+            <p className="text-3xl font-semibold tracking-tight text-balance">Operational workflows, made clear</p>
             <p className="mt-3 text-sm leading-6 text-brand-foreground/80">Approvals, revisions, and assignments stay attached to the workflow that created them.</p>
           </div>
           <p className="text-xs text-brand-foreground/70">Workspace access follows your role. Switching workspaces never changes who you are.</p>
@@ -34,9 +34,9 @@ export function AuthShell({
         <div className="w-full max-w-md">
           <div className="mb-6 flex items-center gap-2.5 lg:hidden">
             <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Workflow className="size-4" aria-hidden="true" />
+              <BrandMark className="size-5" />
             </span>
-            <span className="text-sm font-medium tracking-tight">FlowMV</span>
+            <span className="text-sm font-medium tracking-tight">Orqestra</span>
           </div>
           <Card>
             <CardHeader>

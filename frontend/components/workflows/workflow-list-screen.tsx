@@ -5,6 +5,7 @@ import { IntentLink as Link } from "@/components/shell/intent-link";
 import { GitBranch } from "lucide-react";
 import { CreateWorkflowDialog } from "@/components/workflows/create-workflow-dialog";
 import { EmptyState } from "@/components/patterns/empty-state";
+import { FilterBar } from "@/components/patterns/filter-bar";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";
 import { LoadingState } from "@/components/patterns/loading-state";
 import { PageHeader } from "@/components/patterns/page-header";
@@ -93,7 +94,7 @@ export function WorkflowListScreen() {
         description="Design approval workflows for this workspace. Published versions stay available while a newer draft is in progress."
         actions={<><Button asChild variant="outline"><Link href="/workflows/templates">Explore templates</Link></Button>{canCreate ? <CreateWorkflowDialog organizationId={organizationId} /> : null}</>}
       />
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <FilterBar label="Workflow filters">
         <Input
           value={search}
           onChange={(event) => {
@@ -123,9 +124,10 @@ export function WorkflowListScreen() {
             </SelectContent>
           </Select>
         )}
-      </div>
+      </FilterBar>
       {items.length === 0 ? (
         <EmptyState
+          align="center"
           icon={<GitBranch />}
           title="No workflows"
           description={canCreate ? "Create a workflow to design its form and approval path." : "Published workflows will appear here."}

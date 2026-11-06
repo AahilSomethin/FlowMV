@@ -30,13 +30,13 @@ export function ReassignAssignment({ organizationId, taskId, onUpdated }: { orga
       await api(path, { method: "POST", body, idempotencyKey: keys.current.for(`POST ${path} ${body}`) });
       setOpen(false); onUpdated();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Could not reach FlowMV. Retry with the same selection.");
+      setError(caught instanceof ApiError ? caught.message : "Could not reach Orqestra. Retry with the same selection.");
       if (caught instanceof ApiError && caught.status === 409) onUpdated();
     } finally { setPending(false); }
   }
   return <Dialog open={open} onOpenChange={(next) => { if (!pending) setOpen(next); }}>
     <DialogTrigger asChild><Button variant="outline">Reassign task</Button></DialogTrigger>
-    <DialogContent><DialogHeader><DialogTitle>Reassign task</DialogTitle><DialogDescription>Choose an active workspace member. FlowMV checks eligibility before saving.</DialogDescription></DialogHeader>
+    <DialogContent><DialogHeader><DialogTitle>Reassign task</DialogTitle><DialogDescription>Choose an active workspace member. Orqestra checks eligibility before saving.</DialogDescription></DialogHeader>
       {error ? <p role="alert">{error}</p> : null}
       {!members ? <p role="status">Loading members…</p> : <Select value={member} onValueChange={setMember}><SelectTrigger aria-label="New assignee"><SelectValue placeholder="Select a member" /></SelectTrigger><SelectContent>{members.map((item) => <SelectItem key={item.user_id} value={String(item.user_id)}>{item.name} · {item.role}</SelectItem>)}</SelectContent></Select>}
       <Button disabled={!member || pending} onClick={() => void reassign()}>{pending ? "Reassigning…" : "Confirm reassignment"}</Button>

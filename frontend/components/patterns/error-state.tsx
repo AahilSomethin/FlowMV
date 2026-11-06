@@ -12,7 +12,7 @@ export function describeApiError(error: unknown, fallback = "Could not complete 
   if (error.status === 0) {
     return {
       title: "Unable to connect",
-      description: "Could not reach the FlowMV API. Your session was left unchanged.",
+      description: "Could not reach the Orqestra API. Your session was left unchanged.",
     };
   }
 

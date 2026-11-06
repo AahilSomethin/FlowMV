@@ -106,7 +106,7 @@ async function bootstrapCsrfCookie(): Promise<void> {
       headers: { Accept: "application/json" },
     });
   } catch {
-    throw new ApiError("Could not reach the FlowMV API.", 0);
+    throw new ApiError("Could not reach the Orqestra API.", 0);
   }
 
   if (!response.ok) {
@@ -154,7 +154,7 @@ async function send<T>(path: string, init: ApiInit): Promise<T> {
       credentials: "include",
     });
   } catch {
-    throw new ApiError("Could not reach the FlowMV API.", 0);
+    throw new ApiError("Could not reach the Orqestra API.", 0);
   }
 
   if (response.status === 204) {

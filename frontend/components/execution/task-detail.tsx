@@ -184,25 +184,29 @@ export function TaskDetail({
         </section>
       ) : null}
       {assignment ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium">Assignment</p>
           <Button type="button" className="h-10" disabled={pending !== null} onClick={() => void completeAssignment()}>
             Mark complete
           </Button>
         </div>
       ) : null}
       {approval ? (
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" className="h-10" disabled={pending !== null} onClick={() => setAction("approved")}>
-            Approve
-          </Button>
-          <Button
-            type="button"
-            variant="destructive-outline"
-            disabled={pending !== null}
-            onClick={() => setAction("rejected")}
-          >
-            Reject
-          </Button>
+        <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium">Decision</p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" className="h-10" disabled={pending !== null} onClick={() => setAction("approved")}>
+              Approve
+            </Button>
+            <Button
+              type="button"
+              variant="destructive-outline"
+              disabled={pending !== null}
+              onClick={() => setAction("rejected")}
+            >
+              Reject
+            </Button>
+          </div>
         </div>
       ) : null}
       {banner && (approval || assignment) ? (
@@ -293,7 +297,7 @@ function submissionDefaults(
 
 function networkOrMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 0) {
-    return "Could not reach FlowMV. Retrying will reuse the same idempotency key.";
+    return "Could not reach Orqestra. Retrying will reuse the same idempotency key.";
   }
 
   if (error instanceof ApiError) {

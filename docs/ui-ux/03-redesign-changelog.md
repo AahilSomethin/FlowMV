@@ -38,3 +38,12 @@ Presentation changes only. API payloads, workflow graph serialization, permissio
 
 - The analytics date preset is a radio inside a toggle group. The test clicks that radio.
 - The Recharts mock includes area and bar charts.
+
+## Orqestra rebrand and inbox
+
+- User-facing product name is Orqestra. The sidebar and sign-in panel use the tagline “Operational workflows, made clear.” The mark is an O of nodes and a routed path, including `frontend/app/icon.svg`.
+- Internal identifiers stay: session cookie, `flowmv:*` keys, drag-and-drop type, and `X-FlowMV-*` headers.
+- The full-width demo strip is a compact Demo control. It names email, Slack, Telegram, SMS, document scanning, and AI provider transport as simulated. The API notice string is unchanged.
+- Showcase display names are aligned by `php artisan demo:align-labels`. It updates only the `mindco-showcase` organization name and connection names. Slugs, users, workflows, requests, and audit rows are not rewritten. Document templates stay immutable, so an existing “MINDCo application” template name remains.
+- My Tasks is a wide inbox: real open and completed totals, search, status tabs, and sort of the loaded page. Approve stays primary. Reject stays a controlled destructive action. There is no new revision decision.
+- Shell content padding is tighter. Data routes, including tasks, workflows, dashboard, and settings, use `max-w-7xl`. New request stays a narrower form. Empty states can be centered.

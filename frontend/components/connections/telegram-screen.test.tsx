@@ -48,7 +48,7 @@ describe("Telegram connection controls",()=>{
     await user.click(screen.getByRole("button",{name:"Generate simulated credential"}));
     const token=(screen.getByLabelText("Bot token") as HTMLInputElement).value;
     expect(token).toMatch(/^900001:.*_FLOWMV_QA_ONLY$/);
-    fireEvent.change(screen.getByLabelText("Your FlowMV password"),{target:{value:"password"}});
+    fireEvent.change(screen.getByLabelText("Your Orqestra password"),{target:{value:"password"}});
     expect(api.mock.calls.filter(c=>c[1]?.method)).toHaveLength(0);
     await user.click(screen.getByRole("button",{name:"Confirm"}));
     await screen.findByText("Telegram settings updated.");
@@ -71,7 +71,7 @@ describe("Telegram connection controls",()=>{
     api.mockImplementation((path:string,init?:{method?:string})=>Promise.resolve(init?.method?(path.endsWith("/identity/start")?{command:"/flowmv_link synthetic-challenge"}:{}):{...catalog,items:[{...connection,identity:{telegram_user_id:"777",confirmed:false,expires_at:null}}]}));
     render(<TelegramScreen/>);await screen.findByText("Review bot");
     await user.click(screen.getByRole("button",{name:"Link my account"}));
-    fireEvent.change(screen.getByLabelText("Your FlowMV password"),{target:{value:"password"}});
+    fireEvent.change(screen.getByLabelText("Your Orqestra password"),{target:{value:"password"}});
     await user.click(screen.getByRole("button",{name:"Confirm"}));
     await screen.findByText("/flowmv_link synthetic-challenge");
     expect(screen.getByRole("button",{name:"Confirm account"})).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("Telegram connection controls",()=>{
     await user.click(screen.getByRole("button",{name:"Review retry"}));
     const risk=screen.getByRole("checkbox",{name:/Telegram may already have received/});
     expect(risk).toBeRequired();await user.click(risk);
-    fireEvent.change(screen.getByLabelText("Your FlowMV password"),{target:{value:"password"}});
+    fireEvent.change(screen.getByLabelText("Your Orqestra password"),{target:{value:"password"}});
     await user.click(screen.getByRole("button",{name:"Confirm"}));
     await screen.findByText("Telegram settings updated.");
     const call=api.mock.calls.find(c=>c[0].endsWith("/retry-delivery"));
