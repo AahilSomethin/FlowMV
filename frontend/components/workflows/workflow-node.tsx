@@ -22,19 +22,20 @@ export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
       data-node-type={kind}
       role="group"
       className={cn(
-        "workflow-node relative w-64 rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-shadow",
-        selected && "border-primary ring-2 ring-primary/25 shadow-md",
+        "workflow-node relative w-64 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-(--shadow-card) transition-shadow",
+        selected && "border-primary ring-2 ring-primary/30",
         (data.invalid || warning) && "border-status-warning",
       )}
       aria-label={`${presentation.title}: ${data.label || "Untitled"}${warning ? `. ${warning}` : ""}`}
     >
       {kind !== "start" && kind !== "telegram_trigger" && kind !== "email_trigger" && kind !== "slack_trigger" ? <Handle type="target" position={Position.Top} id="in" className="!size-3 !border-2 !border-card !bg-[var(--node-accent)]" aria-label={presentation.inputLabel} /> : null}
-      <div className="flex items-start gap-3 p-4">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_oklch,var(--node-accent)_12%,transparent)] text-[var(--node-accent)]">
-          <Icon className="size-[18px]" aria-hidden="true" />
+      <span className="absolute inset-y-0 left-0 w-1 bg-[var(--node-accent)]" aria-hidden="true" />
+      <div className="flex items-start gap-3 p-4 pl-5">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_oklch,var(--node-accent)_14%,transparent)] text-[var(--node-accent)]">
+          <Icon className="size-4" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--node-accent)]">{presentation.title}</p>
+          <p className="text-xs font-medium tracking-wide text-[var(--node-accent)] uppercase">{presentation.title}</p>
           <p className="mt-0.5 break-words text-sm font-semibold leading-5">{data.label || "Untitled step"}</p>
         </div>
         <StatusIcon className={cn("size-3.5 shrink-0", warning || data.invalid ? "text-status-warning" : "text-muted-foreground")} aria-label={warning || (data.invalid ? "Needs attention" : "Configured")} />
@@ -47,7 +48,7 @@ export function WorkflowNode({ data, type, selected }: NodeProps<FlowNode>) {
       {outcomes.length ? (
         <div className="flex min-h-8 border-t bg-muted/30 rounded-b-xl">
           {outcomes.map(([handle, label]) => (
-            <div key={handle} className="relative flex-1 py-2 text-center text-[10px] font-medium text-muted-foreground">
+            <div key={handle} className="relative flex-1 px-1 py-2 text-center text-xs font-medium text-muted-foreground">
               {label}
               <Handle type="source" position={Position.Bottom} id={handle}
                 style={{ left: "50%" }}

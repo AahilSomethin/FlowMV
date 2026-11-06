@@ -82,12 +82,12 @@ export function ConnectionsScreen() {
     prepare({title:action === "revoke" ? "Revoke connection permanently" : action === "rotate" ? "Rotate credential" : action.charAt(0).toUpperCase()+action.slice(1), path:`${base}/connections/${connection.id}/${action}`, body});
   }
   return <div className="flex flex-col gap-6">
-    <PageHeader title="Connections" description="Choose what FlowMV can access and which workflows may use it."/>
+    <PageHeader eyebrow="Build" title="Connections" description="Choose what FlowMV can access and which workflows may use it."/>
     <Button asChild variant="outline"><Link href="/connections/ai">OpenAI &amp; Gemini · scoped AI processing</Link></Button>
     {organization&&<ProviderOverview organizationId={organization}/>}
     {error && <p role="alert" className="rounded-lg border border-destructive p-3 text-sm">{error} <Button variant="ghost" onClick={() => void load().catch(() => setError("Could not load connections."))}>Reload</Button></p>}
     {notice && <p role="status" className="rounded-lg border p-3 text-sm">{notice}</p>}
-    {!catalog ? <p>Loading connection controls…</p> : !catalog.mock_enabled && catalog.items.length===0 ? <p className="text-xs text-muted-foreground">The local mock connector is disabled. Use the provider setup pages above for your connected services.</p> : <>
+    {!catalog ? <p role="status" className="text-sm text-muted-foreground">Loading connection controls…</p> : !catalog.mock_enabled && catalog.items.length===0 ? <p className="text-sm text-muted-foreground">The local mock connector is disabled. Use the provider setup pages above for your connected services.</p> : <>
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><FlaskConical className="size-5" aria-hidden="true"/>Local mock connector <Badge variant="secondary">Mock provider</Badge></CardTitle><CardDescription>This connector records synthetic events only. It is separate from the provider connections above.</CardDescription></CardHeader><CardContent className="grid gap-4 md:grid-cols-3">
         <div><h2 className="font-medium">What FlowMV can read</h2><p className="text-sm text-muted-foreground">{catalog.provider.reads}</p></div>
         <div><h2 className="font-medium">What FlowMV can send</h2><p className="text-sm text-muted-foreground">{catalog.provider.sends}</p></div>

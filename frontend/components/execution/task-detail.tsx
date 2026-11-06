@@ -197,8 +197,7 @@ export function TaskDetail({
           </Button>
           <Button
             type="button"
-            variant="outline"
-            className="h-10"
+            variant="destructive-outline"
             disabled={pending !== null}
             onClick={() => setAction("rejected")}
           >

@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { IntentLink as Link } from "@/components/shell/intent-link";
-import { ScrollText } from "lucide-react";
+import { Download, ScrollText } from "lucide-react";
 import { WorkflowFilter } from "@/components/analytics/workflow-filter";
 import { AnalyticsNav, ScopeBanner } from "@/components/analytics/analytics-frame";
 import { ListPager } from "@/components/execution/list-pager";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";
+import { FilterBar } from "@/components/patterns/filter-bar";
 import { LoadingState } from "@/components/patterns/loading-state";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -56,6 +59,7 @@ export function AuditScreen() {
   const [report, setReport] = useState<AuditPage | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const requestKey = organizationId
     ? `${organizationId}:${from}:${to}:${workflow}:${eventType}:${actor}:${instance.trim()}:${page}`
     : null;
@@ -137,15 +141,16 @@ export function AuditScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Audit"
+        eyebrow="Insights"
+        title="Audit explorer"
         description="Append-only workflow events for requests you can open. Submission values are not shown here."
         actions={
           <Button
             type="button"
             variant="outline"
-            className="h-10"
-            disabled={loading}
-            onClick={() =>
+            disabled={loading || exporting}
+            onClick={() => {
+              setExporting(true);
               void downloadExport(organizationId, "audit", {
                 from,
                 to,
@@ -153,15 +158,18 @@ export function AuditScreen() {
                 event_type: eventType === "all" ? undefined : eventType,
                 actor: actor === "all" ? undefined : actor,
                 instance: instance.trim() || undefined,
-              })
-            }
+              }).then(() => toast.success("Audit export downloaded")).catch((caught: unknown) => {
+                toast.error(caught instanceof Error ? caught.message : "The export could not be downloaded.");
+              }).finally(() => setExporting(false));
+            }}
           >
+            {exporting ? <Spinner label="Exporting" /> : <Download aria-hidden="true" />}
             Export CSV
           </Button>
         }
       />
       <AnalyticsNav current="audit" />
-      <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap">
+      <FilterBar label="Audit filters">
         <Input type="date" aria-label="From date" value={from} className="h-10 w-full sm:w-44" onChange={(event) => { setPage(1); setFrom(event.target.value); }} />
         <Input type="date" aria-label="To date" value={to} className="h-10 w-full sm:w-44" onChange={(event) => { setPage(1); setTo(event.target.value); }} />
         <WorkflowFilter key={organizationId} organizationId={organizationId} value={workflow} onChange={(value) => { setPage(1); setWorkflow(value); }} />
@@ -192,13 +200,13 @@ export function AuditScreen() {
           value={instance}
           aria-label="Request id"
           placeholder="Request id"
-          className="h-10 w-full sm:max-w-xs"
+          className="w-full sm:max-w-xs"
           onChange={(event) => {
             setPage(1);
             setInstance(event.target.value);
           }}
         />
-      </div>
+      </FilterBar>
       <ScopeBanner scope={report.scope} label={report.scope_label} />
       {loading ? <LoadingState label="Updating audit" /> : error ? <ErrorState title="Could not update results" description={error} /> : report.items.length === 0 ? (
         <EmptyState
@@ -208,7 +216,7 @@ export function AuditScreen() {
         />
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-foreground/10">
             <Table>
               <TableHeader>
                 <TableRow>

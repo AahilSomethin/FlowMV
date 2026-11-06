@@ -241,9 +241,17 @@ export function instanceStatusLabel(status: InstanceStatus): string {
   }
 }
 
-export function instanceStatusTone(status: InstanceStatus): "neutral" | "attention" | "danger" {
+export function instanceStatusTone(status: InstanceStatus): "neutral" | "attention" | "danger" | "success" | "info" {
   if (status === "rejected" || status === "failed") {
     return "danger";
+  }
+
+  if (status === "completed") {
+    return "success";
+  }
+
+  if (status === "running") {
+    return "info";
   }
 
   if (
@@ -251,8 +259,7 @@ export function instanceStatusTone(status: InstanceStatus): "neutral" | "attenti
     status === "awaiting_revision" ||
     status === "awaiting_assignment" ||
     status === "awaiting_delay" ||
-    status === "awaiting_ai" ||
-    status === "running"
+    status === "awaiting_ai"
   ) {
     return "attention";
   }

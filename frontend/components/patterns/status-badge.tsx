@@ -7,14 +7,25 @@ export function RoleBadge({ role }: { role: OrganizationRole }) {
   return <Badge variant="outline">{roleLabel(role)}</Badge>;
 }
 
+const tones = {
+  neutral: "border-transparent bg-surface-subtle text-foreground",
+  attention: "border-transparent bg-status-warning-soft text-status-warning",
+  danger: "border-transparent bg-status-danger-soft text-destructive",
+  success: "border-transparent bg-status-success-soft text-status-success",
+  info: "border-transparent bg-status-info-soft text-status-info",
+} as const;
+
 export function StatusBadge({
   children,
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "attention" | "danger";
+  tone?: keyof typeof tones;
 }) {
-  const variant = tone === "danger" ? "destructive" : tone === "attention" ? "outline" : "secondary";
-
-  return <Badge variant={variant}>{children}</Badge>;
+  return (
+    <Badge variant="outline" className={tones[tone]}>
+      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+      {children}
+    </Badge>
+  );
 }

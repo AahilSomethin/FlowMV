@@ -19,6 +19,7 @@ export function SettingsScreen() {
   return (
     <>
       <PageHeader
+        eyebrow="Account"
         title="Settings"
         description="Manage your account, workspace details, and appearance."
       />
@@ -46,7 +47,7 @@ export function SettingsScreen() {
       </div>
       <DetailSection title="Appearance" description="Saved in this browser and applied before the page is shown.">
         <DetailItem label="Theme">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Theme">
+          <div className="flex flex-wrap gap-1 rounded-lg bg-surface-subtle p-1 ring-1 ring-foreground/10" role="group" aria-label="Theme">
             {themeOptions.map((option) => (
               <Button
                 key={option.value}

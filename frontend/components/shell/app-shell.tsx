@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { AccountMenu } from "@/components/shell/account-menu";
 import { NotificationsMenu } from "@/components/shell/notifications-menu";
 import { AppBreadcrumbs } from "@/components/shell/app-breadcrumbs";
@@ -24,18 +23,34 @@ function ShellSidebarTrigger() {
   return <SidebarTrigger className="size-10" aria-expanded={isMobile ? openMobile : open} />;
 }
 
+function ShellRouteSync() {
+  const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+
+  useEffect(() => {
+    setOpenMobile(false);
+    const content = document.getElementById("content");
+    if (content instanceof HTMLElement && document.activeElement && !content.contains(document.activeElement)) {
+      content.focus({ preventScroll: true });
+    }
+  }, [pathname, setOpenMobile]);
+
+  return null;
+}
+
 function ShellFrame({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { pending } = useWorkspaceTransition();
   const pathname = usePathname();
   const canvas = /^\/workflows\/[^/]+\/edit$/.test(pathname);
+  const wide = /^\/(analytics|requests|team|connections)(\/|$)/.test(pathname);
   const organizationKey = user?.current_organization?.uuid ?? "none";
   const accessKey = `${user?.id}:${organizationKey}:${user?.current_organization?.role}`;
 
   return (
     <IntentPrefetchProvider scope={accessKey} pathname={pathname} role={user?.current_organization?.role}>
-    <TooltipProvider>
       <SidebarProvider key={canvas ? "studio" : "workspace"} defaultOpen={!canvas}>
+        <ShellRouteSync />
         <AppSidebar />
         <SidebarInset
           id="main"
@@ -47,7 +62,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
         >
           Skip to content
         </a>
-        <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b bg-card/95 px-3 py-2 md:px-4">
+        <header className="sticky top-0 z-20 flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b bg-card/90 px-3 py-2 backdrop-blur-md md:px-4">
           <ShellSidebarTrigger />
           <Separator orientation="vertical" className="hidden h-5 sm:block" />
           <AppBreadcrumbs />
@@ -58,7 +73,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         {organizationKey !== "none" ? <DemoNotice key={organizationKey} organizationId={organizationKey}/> : null}
-        <div id="content" className={canvas ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "flex min-h-0 flex-1 flex-col"}>
+        <div id="content" tabIndex={-1} className={canvas ? "flex min-h-0 flex-1 flex-col overflow-hidden outline-none" : "flex min-h-0 flex-1 flex-col outline-none"}>
           {canvas ? (
             pending ? (
               <div className="p-4">
@@ -70,7 +85,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
               </div>
             )
           ) : (
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 p-4 md:p-8 lg:py-10">
+            <div className={`mx-auto flex w-full flex-1 flex-col gap-8 p-4 md:p-8 lg:py-10 ${wide ? "max-w-7xl" : "max-w-6xl"}`}>
               {pending ? (
                 <LoadingState label="Switching workspace" />
               ) : (
@@ -83,7 +98,6 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
         </div>
       </SidebarInset>
       </SidebarProvider>
-    </TooltipProvider>
     </IntentPrefetchProvider>
   );
 }

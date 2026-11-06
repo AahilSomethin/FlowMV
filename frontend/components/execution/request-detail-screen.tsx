@@ -120,8 +120,10 @@ export function RequestDetailScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Request"
         title={instance.workflow?.name ?? "Request"}
         description={`Started ${formatWhen(instance.started_at)}${instance.submitted_by ? ` by ${instance.submitted_by.name}` : ""}.`}
+        meta={<InstanceStatusBadge status={instance.status} />}
         actions={
           <Button variant="outline" className="h-10" asChild>
             <Link href="/requests">All requests</Link>

@@ -197,6 +197,7 @@ export function TeamScreen() {
       ) : (
         <>
           <PageHeader
+            eyebrow="Organization"
             title="Team"
             description={`Manage the people and responsibilities in ${current.name}.`}
             actions={
@@ -231,7 +232,7 @@ export function TeamScreen() {
               ) : shownMembers.length === 0 ? (
                 <EmptyState title="No active members" description="People who join this workspace will be listed here." />
               ) : (
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
@@ -271,8 +272,7 @@ export function TeamScreen() {
                           <TableCell className="text-right">
                             <Button
                               type="button"
-                              variant="destructive"
-                              className="h-10"
+                              variant="destructive-outline"
                               onClick={() => setRevokeTarget(member)}
                             >
                               Remove
@@ -282,7 +282,7 @@ export function TeamScreen() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                  </Table></div>
               )}
             </CardContent>
           </Card>
@@ -296,7 +296,7 @@ export function TeamScreen() {
               </CardHeader>
               {shownInvitations.length > 0 ? (
                 <CardContent>
-                  <Table>
+                  <div className="overflow-x-auto"><Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Email</TableHead>
@@ -323,7 +323,7 @@ export function TeamScreen() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                  </Table></div>
                 </CardContent>
               ) : null}
             </Card>

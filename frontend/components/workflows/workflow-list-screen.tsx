@@ -88,6 +88,7 @@ export function WorkflowListScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Build"
         title="Workflows"
         description="Design approval workflows for this workspace. Published versions stay available while a newer draft is in progress."
         actions={<><Button asChild variant="outline"><Link href="/workflows/templates">Explore templates</Link></Button>{canCreate ? <CreateWorkflowDialog organizationId={organizationId} /> : null}</>}

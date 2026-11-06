@@ -1,17 +1,19 @@
 import { IntentLink as Link } from "@/components/shell/intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { AnalyticsScope } from "@/lib/analytics";
 
 export function AnalyticsNav({ current }: { current: "overview" | "audit" }) {
+  const item = "inline-flex h-8 items-center rounded-md px-3 text-sm font-medium";
+
   return (
-    <nav className="flex flex-wrap gap-2" aria-label="Analytics sections">
-      <Button variant={current === "overview" ? "default" : "outline"} className="h-10" asChild>
-        <Link href="/analytics">Overview</Link>
-      </Button>
-      <Button variant={current === "audit" ? "default" : "outline"} className="h-10" asChild>
-        <Link href="/analytics/audit">Audit</Link>
-      </Button>
+    <nav className="flex w-fit flex-wrap gap-1 rounded-lg bg-surface-subtle p-1 ring-1 ring-foreground/10" aria-label="Analytics sections">
+      <Link href="/analytics" aria-current={current === "overview" ? "page" : undefined} className={cn(item, current === "overview" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+        Performance
+      </Link>
+      <Link href="/analytics/audit" aria-current={current === "audit" ? "page" : undefined} className={cn(item, current === "audit" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+        Audit
+      </Link>
     </nav>
   );
 }

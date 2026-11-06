@@ -77,6 +77,7 @@ export function TaskInboxScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Work"
         title="My Tasks"
         description="Review approvals, complete assigned work, and respond to revision requests."
       />

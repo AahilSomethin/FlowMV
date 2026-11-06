@@ -27,7 +27,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { WORKSPACE_NAV, type WorkspaceHref } from "@/lib/navigation";
+import { NAV_GROUPS, WORKSPACE_NAV, type WorkspaceHref } from "@/lib/navigation";
 import { useAuth } from "@/lib/auth";
 import { roleLabel } from "@/lib/organizations";
 
@@ -63,40 +63,42 @@ export function AppSidebar() {
                 <span className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Workflow className="size-4" aria-hidden="true" />
                 </span>
-                <span className="group-data-[collapsible=icon]:hidden"><span className="block truncate text-base font-semibold tracking-tight">FlowMV</span><span className="block text-[10px] text-muted-foreground">Work, in flow.</span></span>
+                <span className="group-data-[collapsible=icon]:hidden"><span className="block truncate text-base font-semibold tracking-tight">FlowMV</span><span className="block text-xs text-muted-foreground">Workflows that stay clear</span></span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Your workspace</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {WORKSPACE_NAV.map((item) => {
-                const Icon = icons[item.href];
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        {NAV_GROUPS.map((group) => (
+          <SidebarGroup key={group}>
+            <SidebarGroupLabel>{group}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {WORKSPACE_NAV.filter((item) => item.group === group).map((item) => {
+                  const Icon = icons[item.href];
+                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={descriptions[item.href]}>
-                      <Link
-                        href={item.href}
-                        title={descriptions[item.href]}
-                        aria-current={active ? "page" : undefined}
-                        onClick={() => setOpenMobile(false)}
-                      >
-                        <Icon aria-hidden="true" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={active} tooltip={descriptions[item.href]}>
+                        <Link
+                          href={item.href}
+                          title={descriptions[item.href]}
+                          aria-current={active ? "page" : undefined}
+                          onClick={() => setOpenMobile(false)}
+                        >
+                          <Icon aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <div className="flex min-w-0 items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center">

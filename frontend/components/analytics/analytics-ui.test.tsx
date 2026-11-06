@@ -42,12 +42,16 @@ vi.mock("@/lib/api", async () => {
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   LineChart: () => <div data-testid="line-chart" />,
+  AreaChart: ({ children }: { children?: ReactNode }) => <div data-testid="area-chart">{children}</div>,
+  BarChart: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   PieChart: () => <div data-testid="pie-chart" />,
   CartesianGrid: () => null,
   XAxis: () => null,
   YAxis: () => null,
   Tooltip: () => null,
   Line: () => null,
+  Area: () => null,
+  Bar: () => null,
   Pie: () => null,
   Cell: () => null,
 }));
@@ -193,7 +197,7 @@ describe("analytics screens", () => {
     await screen.findAllByText("Limited to requests you can view");
     api.mockClear();
 
-    await user.click(screen.getByRole("button", { name: "7 days" }));
+    await user.click(screen.getByRole("radio", { name: "7 days" }));
 
     await waitFor(() => {
       expect(api).toHaveBeenCalledWith(expect.stringContaining("from="));

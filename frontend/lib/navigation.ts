@@ -1,13 +1,15 @@
 export const WORKSPACE_NAV = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/tasks", label: "My Tasks" },
-  { href: "/requests", label: "Requests" },
-  { href: "/workflows", label: "Workflows" },
-  { href: "/connections", label: "Connections" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/team", label: "Team" },
-  { href: "/settings", label: "Settings" },
+  { href: "/dashboard", label: "Overview", group: "Work" },
+  { href: "/tasks", label: "My Tasks", group: "Work" },
+  { href: "/requests", label: "Requests", group: "Work" },
+  { href: "/workflows", label: "Workflows", group: "Build" },
+  { href: "/connections", label: "Connections", group: "Build" },
+  { href: "/analytics", label: "Analytics", group: "Insights" },
+  { href: "/team", label: "Team", group: "Organization" },
+  { href: "/settings", label: "Settings", group: "Organization" },
 ] as const;
+
+export const NAV_GROUPS = ["Work", "Build", "Insights", "Organization"] as const;
 
 export type WorkspaceHref = (typeof WORKSPACE_NAV)[number]["href"];
 

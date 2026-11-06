@@ -54,7 +54,7 @@ export function NodePalette({
               const Icon = NODE_PRESENTATION[type].icon;
 
               return (
-                <div key={type} className="rounded-xl border bg-card p-1 transition-colors hover:border-primary/40" data-node-type={type}>
+                <div key={type} className="workflow-node rounded-xl border bg-card p-1 transition-colors hover:border-primary/40" data-node-type={type}>
                   <button
                     type="button"
                     draggable={!disabled}
@@ -69,7 +69,7 @@ export function NodePalette({
                   >
                     <span
                       className="text-sm font-medium text-[var(--node-accent)]"
-                      style={{ ["--node-accent" as string]: `var(--node-${type})` }}
+                      style={{ ["--node-accent" as string]: "var(--node-accent)" }}
                     >
                       <Icon className="mr-2 inline size-4" aria-hidden="true" />{nodeTitle(type)}
                     </span>

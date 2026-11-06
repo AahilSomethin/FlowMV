@@ -141,7 +141,7 @@ function CanvasInner({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-    <p className="shrink-0 border-b bg-card/80 px-4 py-2 text-[11px] text-muted-foreground">{readOnly ? "Workflow preview · Drag to pan, scroll to zoom" : "Connect outcomes on the canvas or in step settings. Drag the canvas to pan; scroll to zoom."}</p>
+    <p className="shrink-0 border-b bg-card/80 px-4 py-2 text-xs text-muted-foreground">{readOnly ? "Workflow preview. Drag to pan, scroll to zoom." : "Connect outcomes on the canvas or in step settings. Drag the canvas to pan. Scroll to zoom."}</p>
     <div className="min-h-0 flex-1"><ReactFlow
       nodes={flowNodes}
       edges={flowEdges}
@@ -195,10 +195,16 @@ function CanvasInner({
       snapGrid={[16, 16]}
       minZoom={0.2}
       maxZoom={1.8}
-      defaultEdgeOptions={{ type: "smoothstep", style: { strokeWidth: 1.6 } }}
+      defaultEdgeOptions={{ type: "smoothstep", style: { strokeWidth: 1.75, stroke: "var(--muted-foreground)" } }}
       className="bg-muted/30"
     >
-      <Background gap={16} size={1} />
+      <Background gap={20} size={1.2} color="var(--border)" />
+      {nodes.length === 0 && !readOnly ? (
+        <Panel position="top-center" className="mt-8 max-w-sm rounded-xl border bg-card p-4 text-sm shadow-(--shadow-overlay)">
+          <p className="font-medium">Start with a step</p>
+          <p className="mt-1 text-muted-foreground">Drag a step from the library, or open Nodes and choose one. The graph stays empty until you add a step.</p>
+        </Panel>
+      ) : null}
       <Panel position="top-right"><Button size="sm" variant="outline" className="bg-card" aria-pressed={showOverview} onClick={() => setShowOverview((current) => !current)}>Overview</Button></Panel>
       {menu ? <Panel position="top-right" className="rounded-lg border bg-card p-2 shadow-lg" role="group" aria-label="Step actions" onKeyDown={(event) => { if (event.key === "Escape") setMenu(null); }}>
         <p className="px-2 py-1 text-xs text-muted-foreground">{nodes.find((node) => node.id === menu.id)?.data.label || "Selected step"}</p>

@@ -9,6 +9,7 @@ import { ListPager } from "@/components/execution/list-pager";
 import { EmptyState } from "@/components/patterns/empty-state";
 import { ErrorState, describeApiError } from "@/components/patterns/error-state";
 import { LoadingState } from "@/components/patterns/loading-state";
+import { FilterBar } from "@/components/patterns/filter-bar";
 import { PageHeader } from "@/components/patterns/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,6 +95,7 @@ export function RequestListScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Work"
         title="Requests"
         description="Start a workplace request and follow its next steps. You’ll see the requests you’re authorized to access."
         actions={
@@ -102,7 +104,7 @@ export function RequestListScreen() {
           </Button>
         }
       />
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <FilterBar>
         <Input
           value={search}
           onChange={(event) => {
@@ -131,7 +133,7 @@ export function RequestListScreen() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FilterBar>
       {loading ? <LoadingState label="Updating requests" /> : error ? <ErrorState title="Requests unavailable" description={error} /> : items.length === 0 ? (
         <EmptyState
           icon={<Inbox />}
